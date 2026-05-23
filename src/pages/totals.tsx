@@ -168,7 +168,7 @@ function SummaryCard({
   return (
     <div className="panel p-4">
       <p className="text-sm font-bold text-zinc-400">{label}</p>
-      <p className={`mt-2 text-right text-2xl font-black ${toneClass}`}>
+      <p className={`money mt-2 text-xl font-black sm:text-2xl ${toneClass}`}>
         {currency.format(value)}
       </p>
     </div>
@@ -187,7 +187,42 @@ function TotalTable({
   return (
     <section className="panel p-4">
       <h2 className="text-lg font-black">{title}</h2>
-      <div className="mt-4 overflow-hidden rounded-md border border-red-900/60">
+      <div className="mt-4 grid gap-2 md:hidden">
+        {rows.length === 0 ? (
+          <p className="rounded-md border border-red-900/60 bg-zinc-950/70 px-3 py-8 text-center text-sm text-zinc-400">
+            {emptyText}
+          </p>
+        ) : (
+          rows.map((row) => (
+            <article
+              key={row.key}
+              className="rounded-md border border-red-900/60 bg-zinc-950/70 p-3"
+            >
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <strong className="text-sm text-white">{row.key}</strong>
+                <span className="money text-sm font-black text-white">
+                  {currency.format(row.balance)}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded bg-black/70 p-2">
+                  <p className="text-zinc-400">수입</p>
+                  <p className="money mt-1 font-black text-emerald-300">
+                    {currency.format(row.income)}
+                  </p>
+                </div>
+                <div className="rounded bg-black/70 p-2">
+                  <p className="text-zinc-400">지출</p>
+                  <p className="money mt-1 font-black text-red-300">
+                    {currency.format(row.expense)}
+                  </p>
+                </div>
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+      <div className="mt-4 hidden overflow-hidden rounded-md border border-red-900/60 md:block">
         <table className="w-full table-fixed text-sm">
           <thead className="bg-black text-xs text-red-200">
             <tr>
@@ -208,13 +243,13 @@ function TotalTable({
               rows.map((row) => (
                 <tr key={row.key} className="border-t border-red-900/50 bg-zinc-950/70">
                   <td className="px-3 py-2 font-black text-white">{row.key}</td>
-                  <td className="px-3 py-2 text-right font-bold text-emerald-300">
+                  <td className="money px-3 py-2 font-bold text-emerald-300">
                     {currency.format(row.income)}
                   </td>
-                  <td className="px-3 py-2 text-right font-bold text-red-300">
+                  <td className="money px-3 py-2 font-bold text-red-300">
                     {currency.format(row.expense)}
                   </td>
-                  <td className="px-3 py-2 text-right font-black text-white">
+                  <td className="money px-3 py-2 font-black text-white">
                     {currency.format(row.balance)}
                   </td>
                 </tr>

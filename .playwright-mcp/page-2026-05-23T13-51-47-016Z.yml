@@ -1,0 +1,35 @@
+- generic [active] [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - paragraph [ref=e7]: 고태윤 가계부
+          - heading "전체 통계" [level=1] [ref=e8]
+        - navigation [ref=e9]:
+          - link "입력 화면" [ref=e10] [cursor=pointer]:
+            - /url: /?month=2026-05
+          - link "일별 그래프" [ref=e11] [cursor=pointer]:
+            - /url: /stats?month=2026-05
+          - link "카테고리 분석" [ref=e12] [cursor=pointer]:
+            - /url: /categories?month=2026-05
+      - generic [ref=e13]:
+        - heading "연도 선택" [level=2] [ref=e14]
+        - generic [ref=e15]:
+          - button "이전" [ref=e16] [cursor=pointer]
+          - combobox [ref=e17]:
+            - option "2026년" [selected]
+          - button "다음" [ref=e18] [cursor=pointer]
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - paragraph [ref=e21]: 2026년 총 수입
+          - paragraph [ref=e22]: ₩0
+        - generic [ref=e23]:
+          - paragraph [ref=e24]: 2026년 총 지출
+          - paragraph [ref=e25]: ₩0
+        - generic [ref=e26]:
+          - paragraph [ref=e27]: 2026년 잔액
+          - paragraph [ref=e28]: ₩0
+      - generic [ref=e30]:
+        - heading "2026년 월별 수입 / 지출 / 잔액" [level=2] [ref=e31]
+        - paragraph [ref=e33]: 선택한 연도의 월별 데이터가 없습니다.
+  - img [ref=e36]

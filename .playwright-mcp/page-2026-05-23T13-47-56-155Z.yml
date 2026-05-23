@@ -1,0 +1,26 @@
+- generic [active] [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - paragraph [ref=e7]: 고태윤 가계부
+          - heading "일별 통계 그래프" [level=1] [ref=e8]
+        - link "입력 화면으로" [ref=e9] [cursor=pointer]:
+          - /url: /?month=2026-05
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - paragraph [ref=e12]: 월 수입
+          - paragraph [ref=e13]: ₩0
+        - generic [ref=e14]:
+          - paragraph [ref=e15]: 월 지출
+          - paragraph [ref=e16]: ₩0
+        - generic [ref=e17]:
+          - paragraph [ref=e18]: 월 잔액
+          - paragraph [ref=e19]: ₩0
+      - generic [ref=e21]:
+        - heading "일별 수입 / 지출" [level=2] [ref=e22]
+        - generic [ref=e23]:
+          - button "이전" [ref=e24] [cursor=pointer]
+          - strong [ref=e25]: 2026-05
+          - button "다음" [ref=e26] [cursor=pointer]
+  - alert [ref=e29]

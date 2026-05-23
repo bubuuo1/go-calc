@@ -128,7 +128,7 @@ export default function CategoriesPage() {
                   <div key={item.category}>
                     <div className="mb-1 flex items-center justify-between text-sm">
                       <span className="font-black text-white">{item.category}</span>
-                      <span className="text-right font-black text-red-300">
+                      <span className="money ml-3 shrink-0 font-black text-red-300">
                         {currency.format(item.amount)}
                       </span>
                     </div>
@@ -166,7 +166,7 @@ function SummaryCard({
   return (
     <div className="panel p-3">
       <p className="text-xs font-bold text-zinc-400">{label}</p>
-      <p className={`mt-1 text-right text-xl font-black ${toneClass}`}>
+      <p className={`money mt-1 text-lg font-black sm:text-xl ${toneClass}`}>
         {currency.format(value)}
       </p>
     </div>
