@@ -565,7 +565,7 @@ function SegmentedTransactionType({
             value === type ? "bg-red-700 text-white shadow-sm" : "text-zinc-400"
           }`}
         >
-          {type === "expense" ? "지출" : "수입"}
+          {type === "expense" ? "지출" : "소득"}
         </button>
       ))}
     </div>
