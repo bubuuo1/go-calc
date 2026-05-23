@@ -308,7 +308,7 @@ export default function Home() {
                       />
                       <button
                         aria-label="달력 열기"
-                        className="h-9 min-w-0 rounded-md border border-red-900/70 bg-zinc-950 text-xs font-black text-red-200 hover:bg-red-950"
+                        className="h-9 min-w-0 rounded-md border border-red-300/70 bg-red-800 text-xs font-black text-white shadow-sm shadow-black/40 transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300/60"
                         type="button"
                         onClick={() => setIsPickerOpen((value) => !value)}
                       >
@@ -562,7 +562,9 @@ function SegmentedTransactionType({
           type="button"
           onClick={() => onChange(type)}
           className={`rounded px-3 py-1.5 text-xs font-black ${
-            value === type ? "bg-red-700 text-white shadow-sm" : "text-zinc-400"
+            value === type
+              ? "border border-red-300/70 bg-red-600 text-white shadow-sm"
+              : "border border-zinc-600 bg-zinc-900 text-zinc-100"
           }`}
         >
           {type === "expense" ? "지출" : "소득"}
@@ -587,7 +589,9 @@ function SegmentedPaymentMethod({
           type="button"
           onClick={() => onChange(method)}
           className={`rounded px-3 py-1.5 text-xs font-black ${
-            value === method ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-400"
+            value === method
+              ? "border border-red-300 bg-white text-zinc-950 shadow-sm"
+              : "border border-zinc-600 bg-zinc-900 text-zinc-100"
           }`}
         >
           {paymentLabel[method]}
@@ -634,7 +638,7 @@ function MiniDatePicker({
               day?.date === selectedDate
                 ? "bg-red-700 text-white"
                 : day
-                  ? "bg-black text-zinc-200 hover:bg-red-950"
+                  ? "border border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-red-400 hover:bg-red-900"
                   : "bg-transparent"
             }`}
             disabled={!day}
