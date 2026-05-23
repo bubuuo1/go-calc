@@ -402,10 +402,14 @@ export default function Home() {
                           <p className="text-xs font-black text-white">{day.dayNumber}</p>
                           <div className="mt-1 grid gap-0.5 text-[10px] font-bold leading-tight">
                             <span className="text-emerald-300">
-                              + {day.income ? compactWon(day.income) : "0"}
+                              <span className="money inline-block">
+                                + {day.income ? compactWon(day.income) : "0"}
+                              </span>
                             </span>
                             <span className="text-red-300">
-                              - {day.expense ? compactWon(day.expense) : "0"}
+                              <span className="money inline-block">
+                                - {day.expense ? compactWon(day.expense) : "0"}
+                              </span>
                             </span>
                           </div>
                         </>
@@ -481,7 +485,7 @@ export default function Home() {
                           </p>
                         </div>
                         <p
-                          className={`text-sm font-black ${
+                          className={`money text-sm font-black ${
                             transaction.type === "income"
                               ? "text-emerald-300"
                               : "text-red-300"
@@ -663,7 +667,9 @@ function SummaryCard({
   return (
     <div className="panel p-3">
       <p className="text-xs font-bold text-zinc-400">{label}</p>
-      <p className={`mt-1 text-xl font-black ${toneClass}`}>{currency.format(value)}</p>
+      <p className={`money mt-1 text-lg font-black sm:text-xl ${toneClass}`}>
+        {currency.format(value)}
+      </p>
     </div>
   );
 }

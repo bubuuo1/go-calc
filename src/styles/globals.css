@@ -37,4 +37,8 @@ body {
   .btn-small-danger {
     @apply whitespace-nowrap rounded-md border border-red-800 bg-red-950 px-2 py-1 text-[11px] font-bold text-red-200 transition hover:bg-red-900;
   }
+
+  .money {
+    @apply whitespace-nowrap break-keep text-right tabular-nums;
+  }
 }

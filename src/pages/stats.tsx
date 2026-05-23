@@ -157,7 +157,7 @@ function SummaryCard({
   return (
     <div className="panel p-4">
       <p className="text-sm font-bold text-zinc-400">{label}</p>
-      <p className={`mt-2 text-right text-2xl font-black ${toneClass}`}>
+      <p className={`money mt-2 text-xl font-black sm:text-2xl ${toneClass}`}>
         {currency.format(value)}
       </p>
     </div>
