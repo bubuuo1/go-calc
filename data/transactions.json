@@ -1,0 +1,209 @@
+[
+  {
+    "id": "8cafeba7-98c5-485c-89da-82b570450047",
+    "type": "income",
+    "paymentMethod": "card",
+    "category": "식비",
+    "amount": 1000000,
+    "memo": "",
+    "date": "2026-05-23"
+  },
+  {
+    "id": "4de67069-84ce-4c5d-90d1-bac7b3aaf6e3",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "식비",
+    "amount": 100000,
+    "memo": "",
+    "date": "2026-05-22"
+  },
+  {
+    "id": "2026-05-carryover-01",
+    "type": "income",
+    "paymentMethod": "cash",
+    "category": "기타",
+    "amount": 3150000,
+    "memo": "4월 이월금",
+    "date": "2026-05-01"
+  },
+  {
+    "id": "2026-04-expense-18",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "기타",
+    "amount": 832000,
+    "memo": "예비비 정산",
+    "date": "2026-04-30"
+  },
+  {
+    "id": "2026-04-expense-17",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "의료",
+    "amount": 155000,
+    "memo": "약국 및 검진",
+    "date": "2026-04-27"
+  },
+  {
+    "id": "2026-04-expense-16",
+    "type": "expense",
+    "paymentMethod": "cash",
+    "category": "기타",
+    "amount": 86000,
+    "memo": "생활 잡화",
+    "date": "2026-04-26"
+  },
+  {
+    "id": "2026-04-expense-15",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "문화",
+    "amount": 210000,
+    "memo": "주말 나들이",
+    "date": "2026-04-24"
+  },
+  {
+    "id": "2026-04-expense-14",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "식비",
+    "amount": 64000,
+    "memo": "간식과 음료",
+    "date": "2026-04-22"
+  },
+  {
+    "id": "2026-04-expense-13",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "쇼핑",
+    "amount": 412000,
+    "memo": "가전 소품",
+    "date": "2026-04-20"
+  },
+  {
+    "id": "2026-04-expense-12",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "교통",
+    "amount": 139000,
+    "memo": "차량 주유",
+    "date": "2026-04-18"
+  },
+  {
+    "id": "2026-04-expense-11",
+    "type": "expense",
+    "paymentMethod": "cash",
+    "category": "기타",
+    "amount": 45000,
+    "memo": "경조사",
+    "date": "2026-04-17"
+  },
+  {
+    "id": "2026-04-income-02",
+    "type": "income",
+    "paymentMethod": "card",
+    "category": "급여",
+    "amount": 2500000,
+    "memo": "4월 추가 수입",
+    "date": "2026-04-16"
+  },
+  {
+    "id": "2026-04-expense-10",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "식비",
+    "amount": 176000,
+    "memo": "외식",
+    "date": "2026-04-15"
+  },
+  {
+    "id": "2026-04-expense-09",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "문화",
+    "amount": 68000,
+    "memo": "영화와 커피",
+    "date": "2026-04-13"
+  },
+  {
+    "id": "2026-04-expense-08",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "교육",
+    "amount": 320000,
+    "memo": "강의 수강료",
+    "date": "2026-04-12"
+  },
+  {
+    "id": "2026-04-expense-07",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "의료",
+    "amount": 125000,
+    "memo": "병원 진료",
+    "date": "2026-04-10"
+  },
+  {
+    "id": "2026-04-expense-06",
+    "type": "expense",
+    "paymentMethod": "cash",
+    "category": "식비",
+    "amount": 37000,
+    "memo": "점심 식사",
+    "date": "2026-04-09"
+  },
+  {
+    "id": "2026-04-expense-05",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "쇼핑",
+    "amount": 248000,
+    "memo": "의류 구입",
+    "date": "2026-04-07"
+  },
+  {
+    "id": "2026-04-expense-04",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "통신",
+    "amount": 94000,
+    "memo": "휴대폰 요금",
+    "date": "2026-04-05"
+  },
+  {
+    "id": "2026-04-expense-03",
+    "type": "expense",
+    "paymentMethod": "cash",
+    "category": "교통",
+    "amount": 56000,
+    "memo": "교통카드 충전",
+    "date": "2026-04-04"
+  },
+  {
+    "id": "2026-04-expense-02",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "식비",
+    "amount": 83000,
+    "memo": "장보기",
+    "date": "2026-04-03"
+  },
+  {
+    "id": "2026-04-expense-01",
+    "type": "expense",
+    "paymentMethod": "card",
+    "category": "주거",
+    "amount": 1200000,
+    "memo": "월세",
+    "date": "2026-04-02"
+  },
+  {
+    "id": "2026-04-income-01",
+    "type": "income",
+    "paymentMethod": "card",
+    "category": "급여",
+    "amount": 5000000,
+    "memo": "4월 월급",
+    "date": "2026-04-01"
+  }
+]
