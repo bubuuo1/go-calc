@@ -1,8 +1,10 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import { getTransactions } from "@/services/api";
 import type { Transaction } from "@/types/transaction";
+import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
 
 const currency = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -10,12 +12,10 @@ const currency = new Intl.NumberFormat("ko-KR", {
   maximumFractionDigits: 0
 });
 
-const toMonthKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-
 export default function CategoriesPage() {
+  const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [month, setMonth] = useState("2026-04");
+  const [month, setMonth] = useState(currentMonthKey());
 
   useEffect(() => {
     const load = async () => {
@@ -28,6 +28,14 @@ export default function CategoriesPage() {
 
     load();
   }, []);
+
+  useEffect(() => {
+    if (!router.isReady || !isMonthKey(router.query.month)) {
+      return;
+    }
+
+    setMonth(router.query.month);
+  }, [router.isReady, router.query.month]);
 
   const categoryStats = useMemo(() => {
     const totals = transactions
@@ -49,8 +57,11 @@ export default function CategoriesPage() {
   const maxAmount = Math.max(...categoryStats.map((item) => item.amount), 1);
 
   const shiftMonth = (delta: number) => {
-    const [year, monthNumber] = month.split("-").map(Number);
-    setMonth(toMonthKey(new Date(year, monthNumber - 1 + delta, 1)));
+    const nextMonth = shiftMonthKey(month, delta);
+    setMonth(nextMonth);
+    router.replace({ pathname: router.pathname, query: { ...router.query, month: nextMonth } }, undefined, {
+      shallow: true
+    });
   };
 
   return (
@@ -73,10 +84,16 @@ export default function CategoriesPage() {
               </h1>
             </div>
             <div className="flex gap-2">
-              <Link className="btn-secondary inline-flex h-9 items-center justify-center" href="/">
+              <Link
+                className="btn-secondary inline-flex h-9 items-center justify-center"
+                href={{ pathname: "/", query: { month } }}
+              >
                 입력 화면
               </Link>
-              <Link className="btn-secondary inline-flex h-9 items-center justify-center" href="/stats">
+              <Link
+                className="btn-secondary inline-flex h-9 items-center justify-center"
+                href={{ pathname: "/stats", query: { month } }}
+              >
                 일별 그래프
               </Link>
             </div>

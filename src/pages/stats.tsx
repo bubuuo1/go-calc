@@ -1,18 +1,11 @@
 import Head from "next/head";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from "recharts";
 import { getTransactions } from "@/services/api";
 import type { Transaction } from "@/types/transaction";
+import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
 
 const currency = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -20,12 +13,15 @@ const currency = new Intl.NumberFormat("ko-KR", {
   maximumFractionDigits: 0
 });
 
-const toMonthKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+const DailyStatsChart = dynamic(() => import("@/components/DailyStatsChart"), {
+  ssr: false,
+  loading: () => <div className="h-full rounded-md bg-zinc-950/60" />
+});
 
 export default function StatsPage() {
+  const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [month, setMonth] = useState("2026-04");
+  const [month, setMonth] = useState(currentMonthKey());
 
   useEffect(() => {
     const load = async () => {
@@ -39,26 +35,35 @@ export default function StatsPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    if (!router.isReady || !isMonthKey(router.query.month)) {
+      return;
+    }
+
+    setMonth(router.query.month);
+  }, [router.isReady, router.query.month]);
+
   const dailyStats = useMemo(() => {
     const [year, monthNumber] = month.split("-").map(Number);
     const lastDay = new Date(year, monthNumber, 0).getDate();
+    const totalsByDate = transactions
+      .filter((transaction) => transaction.date.startsWith(month))
+      .reduce<Record<string, { income: number; expense: number }>>((totals, transaction) => {
+        totals[transaction.date] = totals[transaction.date] || { income: 0, expense: 0 };
+        totals[transaction.date][transaction.type] += transaction.amount;
+        return totals;
+      }, {});
 
     return Array.from({ length: lastDay }, (_, index) => {
       const day = index + 1;
       const date = `${month}-${String(day).padStart(2, "0")}`;
-      const dayTransactions = transactions.filter((transaction) => transaction.date === date);
-      const income = dayTransactions
-        .filter((transaction) => transaction.type === "income")
-        .reduce((sum, transaction) => sum + transaction.amount, 0);
-      const expense = dayTransactions
-        .filter((transaction) => transaction.type === "expense")
-        .reduce((sum, transaction) => sum + transaction.amount, 0);
+      const dayTotals = totalsByDate[date] || { income: 0, expense: 0 };
 
       return {
         day: `${day}일`,
-        income,
-        expense,
-        balance: income - expense
+        income: dayTotals.income,
+        expense: dayTotals.expense,
+        balance: dayTotals.income - dayTotals.expense
       };
     });
   }, [month, transactions]);
@@ -70,8 +75,11 @@ export default function StatsPage() {
   }, [dailyStats]);
 
   const shiftMonth = (delta: number) => {
-    const [year, monthNumber] = month.split("-").map(Number);
-    setMonth(toMonthKey(new Date(year, monthNumber - 1 + delta, 1)));
+    const nextMonth = shiftMonthKey(month, delta);
+    setMonth(nextMonth);
+    router.replace({ pathname: router.pathname, query: { ...router.query, month: nextMonth } }, undefined, {
+      shallow: true
+    });
   };
 
   return (
@@ -93,7 +101,10 @@ export default function StatsPage() {
                 일별 통계 그래프
               </h1>
             </div>
-            <Link className="btn-secondary inline-flex h-10 items-center justify-center" href="/">
+            <Link
+              className="btn-secondary inline-flex h-10 items-center justify-center"
+              href={{ pathname: "/", query: { month } }}
+            >
               입력 화면으로
             </Link>
           </header>
@@ -119,29 +130,7 @@ export default function StatsPage() {
             </div>
 
             <div className="mt-6 h-[420px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dailyStats} margin={{ top: 10, right: 16, left: 8, bottom: 20 }}>
-                  <CartesianGrid stroke="#3f3f46" strokeDasharray="3 3" />
-                  <XAxis dataKey="day" stroke="#d4d4d8" tick={{ fontSize: 12 }} />
-                  <YAxis
-                    stroke="#d4d4d8"
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => `${Number(value) / 10000}만`}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#09090b",
-                      border: "1px solid #7f1d1d",
-                      borderRadius: 8,
-                      color: "#ffffff"
-                    }}
-                    formatter={(value) => currency.format(Number(value))}
-                  />
-                  <Legend />
-                  <Bar dataKey="income" name="수입" fill="#34d399" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expense" name="지출" fill="#dc2626" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <DailyStatsChart data={dailyStats} />
             </div>
           </section>
         </div>

@@ -1,5 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   createTransaction,
@@ -14,6 +15,7 @@ import type {
   TransactionInput,
   TransactionType
 } from "@/types/transaction";
+import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
 
 const PAGE_SIZE = 8;
 
@@ -25,8 +27,6 @@ const currency = new Intl.NumberFormat("ko-KR", {
 
 const numberFormat = new Intl.NumberFormat("ko-KR");
 const today = () => new Date().toISOString().slice(0, 10);
-const toMonthKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 
 const emptyForm: TransactionInput = {
   type: "expense",
@@ -59,6 +59,7 @@ const DEFAULT_CATEGORIES = [
 ];
 
 export default function Home() {
+  const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [form, setForm] = useState<TransactionInput>(emptyForm);
@@ -66,8 +67,8 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | TransactionType>("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [visibleMonth, setVisibleMonth] = useState(toMonthKey(new Date()));
-  const [pickerMonth, setPickerMonth] = useState(toMonthKey(new Date()));
+  const [visibleMonth, setVisibleMonth] = useState(currentMonthKey());
+  const [pickerMonth, setPickerMonth] = useState(currentMonthKey());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -88,6 +89,15 @@ export default function Home() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (!router.isReady || !isMonthKey(router.query.month)) {
+      return;
+    }
+
+    setVisibleMonth(router.query.month);
+    setPickerMonth(router.query.month);
+  }, [router.isReady, router.query.month]);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((transaction) => {
@@ -115,22 +125,19 @@ export default function Home() {
     currentPage * PAGE_SIZE
   );
 
-  const stats = useMemo(() => {
-    const income = filteredTransactions
+  const monthlyStats = useMemo(() => {
+    const monthTransactions = transactions.filter((transaction) =>
+      transaction.date.startsWith(visibleMonth)
+    );
+    const income = monthTransactions
       .filter((transaction) => transaction.type === "income")
       .reduce((sum, transaction) => sum + transaction.amount, 0);
-    const expense = filteredTransactions
+    const expense = monthTransactions
       .filter((transaction) => transaction.type === "expense")
       .reduce((sum, transaction) => sum + transaction.amount, 0);
-    const categoryTotals = filteredTransactions
-      .filter((transaction) => transaction.type === "expense")
-      .reduce<Record<string, number>>((totals, transaction) => {
-        totals[transaction.category] = (totals[transaction.category] || 0) + transaction.amount;
-        return totals;
-      }, {});
 
-    return { income, expense, balance: income - expense, categoryTotals };
-  }, [filteredTransactions]);
+    return { income, expense, balance: income - expense };
+  }, [transactions, visibleMonth]);
 
   const calendarDays = useMemo(
     () => buildMonthDays(visibleMonth).map((day) => buildDaySummary(day, transactions)),
@@ -138,7 +145,11 @@ export default function Home() {
   );
 
   const changeMonth = (delta: number) => {
-    setVisibleMonth(shiftMonth(visibleMonth, delta));
+    const nextMonth = shiftMonth(visibleMonth, delta);
+    setVisibleMonth(nextMonth);
+    router.replace({ pathname: router.pathname, query: { ...router.query, month: nextMonth } }, undefined, {
+      shallow: true
+    });
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -165,7 +176,7 @@ export default function Home() {
         date: today(),
         category: categories[0] || "기타"
       });
-      setPickerMonth(toMonthKey(new Date()));
+      setPickerMonth(currentMonthKey());
       setIsPickerOpen(false);
       await load();
     } catch {}
@@ -192,8 +203,6 @@ export default function Home() {
     } catch {}
   };
 
-  const maxCategoryTotal = Math.max(...Object.values(stats.categoryTotals), 1);
-
   return (
     <>
       <Head>
@@ -213,17 +222,26 @@ export default function Home() {
                 수입 지출 관리
               </h1>
             </div>
-            <div className="flex flex-col gap-2 sm:items-end">
-              <Link className="btn-secondary inline-flex h-9 items-center justify-center" href="/stats">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <Link
+                className="btn-secondary inline-flex h-9 items-center justify-center"
+                href={{ pathname: "/totals", query: { month: visibleMonth } }}
+              >
+                전체 통계 보기
+              </Link>
+              <Link
+                className="btn-secondary inline-flex h-9 items-center justify-center"
+                href={{ pathname: "/stats", query: { month: visibleMonth } }}
+              >
                 일별 그래프 보기
               </Link>
             </div>
           </header>
 
           <section className="grid gap-3 md:grid-cols-3">
-            <SummaryCard label="총 수입" tone="income" value={stats.income} />
-            <SummaryCard label="총 지출" tone="expense" value={stats.expense} />
-            <SummaryCard label="현재 잔액" tone="primary" value={stats.balance} />
+            <SummaryCard label={`${visibleMonth} 수입`} tone="income" value={monthlyStats.income} />
+            <SummaryCard label={`${visibleMonth} 지출`} tone="expense" value={monthlyStats.expense} />
+            <SummaryCard label={`${visibleMonth} 잔액`} tone="primary" value={monthlyStats.balance} />
           </section>
 
           <section className="grid gap-4 xl:grid-cols-[340px_1fr]">
@@ -258,11 +276,11 @@ export default function Home() {
                   />
                 </label>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-2">
                   <label className="grid gap-1 text-xs font-bold">
                     카테고리
                     <select
-                      className="input"
+                      className="input min-w-0"
                       value={form.category}
                       onChange={(event) =>
                         setForm((value) => ({ ...value, category: event.target.value }))
@@ -278,9 +296,9 @@ export default function Home() {
 
                   <label className="grid gap-1 text-xs font-bold">
                     날짜
-                    <div className="relative flex gap-1">
+                    <div className="relative grid grid-cols-[minmax(0,1fr)_42px] gap-1.5">
                       <input
-                        className="input pr-2"
+                        className="input min-w-0 pr-2"
                         type="date"
                         value={form.date}
                         onChange={(event) => {
@@ -290,7 +308,7 @@ export default function Home() {
                       />
                       <button
                         aria-label="달력 열기"
-                        className="h-9 w-10 rounded-md border border-red-900/70 bg-zinc-950 text-sm font-black text-red-200 hover:bg-red-950"
+                        className="h-9 min-w-0 rounded-md border border-red-900/70 bg-zinc-950 text-xs font-black text-red-200 hover:bg-red-950"
                         type="button"
                         onClick={() => setIsPickerOpen((value) => !value)}
                       >
@@ -340,7 +358,7 @@ export default function Home() {
                         date: today(),
                         category: categories[0] || "기타"
                       });
-                      setPickerMonth(toMonthKey(new Date()));
+                      setPickerMonth(currentMonthKey());
                       setIsPickerOpen(false);
                     }}
                   >
@@ -517,29 +535,6 @@ export default function Home() {
                 </div>
               </section>
 
-              <section className="panel p-3">
-                <h2 className="text-base font-black">카테고리별 지출</h2>
-                <div className="mt-3 grid gap-2">
-                  {Object.entries(stats.categoryTotals).length === 0 ? (
-                    <p className="text-sm text-zinc-400">지출 데이터가 없습니다.</p>
-                  ) : (
-                    Object.entries(stats.categoryTotals).map(([category, amount]) => (
-                      <div key={category}>
-                        <div className="mb-1 flex items-center justify-between text-xs">
-                          <span className="font-bold">{category}</span>
-                          <span className="text-zinc-300">{currency.format(amount)}</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-zinc-800">
-                          <div
-                            className="h-2 rounded-full bg-red-600"
-                            style={{ width: `${(amount / maxCategoryTotal) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
             </div>
           </section>
         </div>
@@ -714,13 +709,14 @@ function buildDaySummary(
 
 function compactWon(value: number) {
   if (value >= 10000) {
-    return `${Math.round(value / 10000)}만`;
+    const manWon = value / 10000;
+    const displayValue = Number.isInteger(manWon) ? manWon.toFixed(0) : manWon.toFixed(1);
+    return `${displayValue}만`;
   }
 
   return numberFormat.format(value);
 }
 
 function shiftMonth(monthKey: string, delta: number) {
-  const [year, month] = monthKey.split("-").map(Number);
-  return toMonthKey(new Date(year, month - 1 + delta, 1));
+  return shiftMonthKey(monthKey, delta);
 }

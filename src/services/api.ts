@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Transaction, TransactionInput } from "@/types/transaction";
 
 type TransactionRow = {
@@ -26,6 +27,8 @@ const DEFAULT_CATEGORIES = [
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+let supabaseClient: SupabaseClient | null = null;
+let transactionCache: Transaction[] | null = null;
 
 const getSupabase = () => {
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -34,7 +37,8 @@ const getSupabase = () => {
     );
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey);
+  supabaseClient = supabaseClient || createClient(supabaseUrl, supabaseAnonKey);
+  return supabaseClient;
 };
 
 const toTransaction = (row: TransactionRow): Transaction => ({
@@ -57,7 +61,17 @@ const toRow = (transaction: TransactionInput, id: string): TransactionRow => ({
   date: transaction.date
 });
 
+const sortTransactions = (transactions: Transaction[]) =>
+  [...transactions].sort((left, right) => {
+    const dateOrder = right.date.localeCompare(left.date);
+    return dateOrder || right.id.localeCompare(left.id);
+  });
+
 export const getTransactions = async () => {
+  if (transactionCache) {
+    return transactionCache;
+  }
+
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("transactions")
@@ -69,7 +83,8 @@ export const getTransactions = async () => {
     throw error;
   }
 
-  return (data || []).map((row) => toTransaction(row as TransactionRow));
+  transactionCache = (data || []).map((row) => toTransaction(row as TransactionRow));
+  return transactionCache;
 };
 
 export const createTransaction = async (transaction: TransactionInput) => {
@@ -85,7 +100,11 @@ export const createTransaction = async (transaction: TransactionInput) => {
     throw error;
   }
 
-  return toTransaction(data as TransactionRow);
+  const createdTransaction = toTransaction(data as TransactionRow);
+  transactionCache = transactionCache
+    ? sortTransactions([createdTransaction, ...transactionCache])
+    : null;
+  return createdTransaction;
 };
 
 export const updateTransaction = async (id: string, transaction: TransactionInput) => {
@@ -101,7 +120,15 @@ export const updateTransaction = async (id: string, transaction: TransactionInpu
     throw error;
   }
 
-  return toTransaction(data as TransactionRow);
+  const updatedTransaction = toTransaction(data as TransactionRow);
+  transactionCache = transactionCache
+    ? sortTransactions(
+        transactionCache.map((transaction) =>
+          transaction.id === updatedTransaction.id ? updatedTransaction : transaction
+        )
+      )
+    : null;
+  return updatedTransaction;
 };
 
 export const deleteTransaction = async (id: string) => {
@@ -111,6 +138,10 @@ export const deleteTransaction = async (id: string) => {
   if (error) {
     throw error;
   }
+
+  transactionCache = transactionCache
+    ? transactionCache.filter((transaction) => transaction.id !== id)
+    : null;
 };
 
 export const getCategories = async () => DEFAULT_CATEGORIES;
