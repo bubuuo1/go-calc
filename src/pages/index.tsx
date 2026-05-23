@@ -31,7 +31,7 @@ const toMonthKey = (date: Date) =>
 const emptyForm: TransactionInput = {
   type: "expense",
   paymentMethod: "card",
-  category: "food",
+  category: "식비",
   amount: 0,
   memo: "",
   date: today()
@@ -45,9 +45,22 @@ const paymentLabel: Record<PaymentMethod, string> = {
   card: "카드"
 };
 
+const DEFAULT_CATEGORIES = [
+  "식비",
+  "교통",
+  "쇼핑",
+  "주거",
+  "통신",
+  "의료",
+  "교육",
+  "문화",
+  "급여",
+  "기타"
+];
+
 export default function Home() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [form, setForm] = useState<TransactionInput>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -57,7 +70,6 @@ export default function Home() {
   const [pickerMonth, setPickerMonth] = useState(toMonthKey(new Date()));
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [status, setStatus] = useState("서버 연결 확인 중...");
 
   const load = async () => {
     try {
@@ -66,10 +78,10 @@ export default function Home() {
         getCategories()
       ]);
       setTransactions(nextTransactions);
-      setCategories(nextCategories);
-      setStatus("저장된 JSON 데이터를 불러왔습니다.");
+      setCategories(nextCategories.length > 0 ? nextCategories : DEFAULT_CATEGORIES);
     } catch {
-      setStatus("API 서버를 먼저 실행해 주세요: npm run dev:api");
+      setTransactions([]);
+      setCategories(DEFAULT_CATEGORIES);
     }
   };
 
@@ -138,7 +150,6 @@ export default function Home() {
     };
 
     if (!payload.amount || payload.amount < 0) {
-      setStatus("금액을 0보다 크게 입력해 주세요.");
       return;
     }
 
@@ -146,22 +157,18 @@ export default function Home() {
       if (editingId) {
         await updateTransaction(editingId, payload);
         setEditingId(null);
-        setStatus("거래를 수정했습니다.");
       } else {
         await createTransaction(payload);
-        setStatus("거래를 추가했습니다.");
       }
       setForm({
         ...emptyForm,
         date: today(),
-        category: categories[0] || "etc"
+        category: categories[0] || "기타"
       });
       setPickerMonth(toMonthKey(new Date()));
       setIsPickerOpen(false);
       await load();
-    } catch {
-      setStatus("저장 중 문제가 발생했습니다.");
-    }
+    } catch {}
   };
 
   const edit = (transaction: Transaction) => {
@@ -181,11 +188,8 @@ export default function Home() {
   const remove = async (id: string) => {
     try {
       await deleteTransaction(id);
-      setStatus("거래를 삭제했습니다.");
       await load();
-    } catch {
-      setStatus("삭제 중 문제가 발생했습니다.");
-    }
+    } catch {}
   };
 
   const maxCategoryTotal = Math.max(...Object.values(stats.categoryTotals), 1);
@@ -213,9 +217,6 @@ export default function Home() {
               <Link className="btn-secondary inline-flex h-9 items-center justify-center" href="/stats">
                 일별 그래프 보기
               </Link>
-              <p className="rounded-md border border-red-400/40 bg-black/50 px-3 py-1.5 text-xs text-zinc-200 shadow-sm">
-                {status}
-              </p>
             </div>
           </header>
 
@@ -244,7 +245,7 @@ export default function Home() {
                 <label className="grid gap-1 text-xs font-bold">
                   금액
                   <input
-                    className="input"
+                    className="input text-right"
                     inputMode="numeric"
                     value={formatAmount(form.amount)}
                     onChange={(event) =>
@@ -253,7 +254,7 @@ export default function Home() {
                         amount: parseAmount(event.target.value)
                       }))
                     }
-                    placeholder="12,000"
+                    placeholder="금액을 입력하세요"
                   />
                 </label>
 
@@ -337,7 +338,7 @@ export default function Home() {
                       setForm({
                         ...emptyForm,
                         date: today(),
-                        category: categories[0] || "etc"
+                        category: categories[0] || "기타"
                       });
                       setPickerMonth(toMonthKey(new Date()));
                       setIsPickerOpen(false);
