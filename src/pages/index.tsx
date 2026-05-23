@@ -193,7 +193,7 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Tigers Ledger</title>
+        <title>고태윤 가계부</title>
         <meta name="description" content="JSON 파일 기반 로컬 가계부" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -203,10 +203,10 @@ export default function Home() {
           <header className="flex flex-col gap-3 border-b border-red-500/40 pb-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">
-                Tigers Local Ledger
+                고태윤 가계부
               </p>
               <h1 className="mt-1 text-3xl font-black tracking-normal text-white">
-                가계부 스코어보드
+                수입 지출 관리
               </h1>
             </div>
             <div className="flex flex-col gap-2 sm:items-end">
