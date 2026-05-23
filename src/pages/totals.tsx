@@ -131,13 +131,13 @@ export default function TotalsPage() {
             </div>
           </section>
 
-          <section className="grid gap-3 md:grid-cols-3">
+          <section className="order-3 grid gap-3 md:order-2 md:grid-cols-3">
             <SummaryCard label={`${selectedYear}년 총 수입`} value={yearlyTotal.income} tone="income" />
             <SummaryCard label={`${selectedYear}년 총 지출`} value={yearlyTotal.expense} tone="expense" />
             <SummaryCard label={`${selectedYear}년 잔액`} value={yearlyTotal.balance} tone="primary" />
           </section>
 
-          <section>
+          <section className="order-2 md:order-3">
             <TotalTable
               title={`${selectedYear}년 월별 수입 / 지출 / 잔액`}
               rows={monthlyRows}
