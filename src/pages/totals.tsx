@@ -90,18 +90,21 @@ export default function TotalsPage() {
               <Link
                 className="btn-secondary inline-flex h-10 items-center justify-center"
                 href={{ pathname: "/", query: { month: linkedMonth } }}
+                replace
               >
                 입력 화면
               </Link>
               <Link
                 className="btn-secondary inline-flex h-10 items-center justify-center"
                 href={{ pathname: "/stats", query: { month: linkedMonth } }}
+                replace
               >
                 일별 그래프
               </Link>
               <Link
                 className="btn-secondary inline-flex h-10 items-center justify-center"
                 href={{ pathname: "/categories", query: { month: linkedMonth } }}
+                replace
               >
                 카테고리 분석
               </Link>

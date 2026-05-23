@@ -87,12 +87,14 @@ export default function CategoriesPage() {
               <Link
                 className="btn-secondary inline-flex h-9 items-center justify-center"
                 href={{ pathname: "/", query: { month } }}
+                replace
               >
                 입력 화면
               </Link>
               <Link
                 className="btn-secondary inline-flex h-9 items-center justify-center"
                 href={{ pathname: "/stats", query: { month } }}
+                replace
               >
                 일별 그래프
               </Link>

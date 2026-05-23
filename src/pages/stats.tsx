@@ -104,6 +104,7 @@ export default function StatsPage() {
             <Link
               className="btn-secondary inline-flex h-10 items-center justify-center"
               href={{ pathname: "/", query: { month } }}
+              replace
             >
               입력 화면으로
             </Link>

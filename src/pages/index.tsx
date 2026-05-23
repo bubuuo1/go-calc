@@ -226,12 +226,14 @@ export default function Home() {
               <Link
                 className="btn-secondary inline-flex h-9 items-center justify-center"
                 href={{ pathname: "/totals", query: { month: visibleMonth } }}
+                replace
               >
                 전체 통계 보기
               </Link>
               <Link
                 className="btn-secondary inline-flex h-9 items-center justify-center"
                 href={{ pathname: "/stats", query: { month: visibleMonth } }}
+                replace
               >
                 일별 그래프 보기
               </Link>
