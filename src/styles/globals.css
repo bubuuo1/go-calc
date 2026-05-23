@@ -23,19 +23,19 @@ body {
   }
 
   .btn-primary {
-    @apply h-9 rounded-md bg-red-700 px-3 text-sm font-black text-white transition hover:bg-red-600;
+    @apply h-9 rounded-md border border-red-300/50 bg-red-600 px-3 text-sm font-black text-white shadow-sm shadow-red-950/60 transition hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-300/60;
   }
 
   .btn-secondary {
-    @apply h-9 rounded-md border border-zinc-600 bg-white px-3 text-sm font-black text-zinc-950 transition hover:bg-zinc-200;
+    @apply h-9 rounded-md border border-red-300 bg-white px-3 text-sm font-black text-zinc-950 shadow-sm shadow-black/30 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300/60;
   }
 
   .btn-small {
-    @apply whitespace-nowrap rounded-md border border-zinc-600 bg-zinc-950 px-2 py-1 text-[11px] font-bold text-zinc-100 transition hover:border-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40;
+    @apply whitespace-nowrap rounded-md border border-red-300/70 bg-red-800 px-2.5 py-1 text-[11px] font-black text-white shadow-sm shadow-black/40 transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300/60 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:opacity-70;
   }
 
   .btn-small-danger {
-    @apply whitespace-nowrap rounded-md border border-red-800 bg-red-950 px-2 py-1 text-[11px] font-bold text-red-200 transition hover:bg-red-900;
+    @apply whitespace-nowrap rounded-md border border-red-200/70 bg-red-700 px-2.5 py-1 text-[11px] font-black text-white shadow-sm shadow-black/40 transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300/60;
   }
 
   .money {
