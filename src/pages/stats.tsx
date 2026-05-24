@@ -141,7 +141,7 @@ export default function StatsPage() {
               </div>
             </div>
 
-            <div className="mt-6 h-[420px] w-full">
+            <div className="mt-4 h-64 w-full sm:h-80 lg:h-[420px]">
               <DailyStatsChart data={dailyStats} />
             </div>
           </section>
