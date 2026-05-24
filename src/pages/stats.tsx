@@ -7,6 +7,7 @@ import { getTransactions } from "@/services/api";
 import type { Transaction } from "@/types/transaction";
 import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
 import { getStoredMonth, hasAppEntered, setStoredMonth } from "@/utils/session";
+import { EXCLUDED_GRAPH_CATEGORIES } from "@/utils/ledger";
 
 const currency = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -60,7 +61,11 @@ export default function StatsPage() {
     const [year, monthNumber] = month.split("-").map(Number);
     const lastDay = new Date(year, monthNumber, 0).getDate();
     const totalsByDate = transactions
-      .filter((transaction) => transaction.date.startsWith(month))
+      .filter(
+        (transaction) =>
+          transaction.date.startsWith(month) &&
+          !EXCLUDED_GRAPH_CATEGORIES.includes(transaction.category)
+      )
       .reduce<Record<string, { income: number; expense: number }>>((totals, transaction) => {
         totals[transaction.date] = totals[transaction.date] || { income: 0, expense: 0 };
         totals[transaction.date][transaction.type] += transaction.amount;
@@ -99,7 +104,9 @@ export default function StatsPage() {
     const previousExpense = transactions
       .filter(
         (transaction) =>
-          transaction.type === "expense" && transaction.date.startsWith(previousMonth)
+          transaction.type === "expense" &&
+          transaction.date.startsWith(previousMonth) &&
+          !EXCLUDED_GRAPH_CATEGORIES.includes(transaction.category)
       )
       .reduce((sum, transaction) => sum + transaction.amount, 0);
     const difference = totals.expense - previousExpense;

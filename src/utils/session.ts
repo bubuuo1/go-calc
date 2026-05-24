@@ -1,9 +1,13 @@
 import { currentMonthKey, isMonthKey } from "@/utils/month";
+import type { Inputter } from "@/types/transaction";
 
 const MONTH_KEY = "go-calc:selected-month";
 const ENTERED_KEY = "go-calc:entered";
+const INPUTTER_KEY = "go-calc:inputter";
+const EDIT_TRANSACTION_KEY = "go-calc:edit-transaction-id";
 
 const canUseSession = () => typeof window !== "undefined";
+const isInputter = (value: unknown): value is Inputter => value === "husband" || value === "wife";
 
 export const markAppEntered = () => {
   if (canUseSession()) {
@@ -26,5 +30,40 @@ export const getStoredMonth = () => {
 export const setStoredMonth = (month: string) => {
   if (canUseSession() && isMonthKey(month)) {
     window.sessionStorage.setItem(MONTH_KEY, month);
+  }
+};
+
+export const getStoredInputter = () => {
+  if (!canUseSession()) {
+    return null;
+  }
+
+  const storedInputter = window.localStorage.getItem(INPUTTER_KEY);
+  return isInputter(storedInputter) ? storedInputter : null;
+};
+
+export const setStoredInputter = (inputter: Inputter) => {
+  if (canUseSession()) {
+    window.localStorage.setItem(INPUTTER_KEY, inputter);
+  }
+};
+
+export const getStoredEditTransactionId = () => {
+  if (!canUseSession()) {
+    return null;
+  }
+
+  return window.sessionStorage.getItem(EDIT_TRANSACTION_KEY);
+};
+
+export const setStoredEditTransactionId = (id: string) => {
+  if (canUseSession()) {
+    window.sessionStorage.setItem(EDIT_TRANSACTION_KEY, id);
+  }
+};
+
+export const clearStoredEditTransactionId = () => {
+  if (canUseSession()) {
+    window.sessionStorage.removeItem(EDIT_TRANSACTION_KEY);
   }
 };
