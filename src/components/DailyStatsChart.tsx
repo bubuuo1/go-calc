@@ -1,8 +1,7 @@
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
-  Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -25,7 +24,7 @@ const currency = new Intl.NumberFormat("ko-KR", {
 export default function DailyStatsChart({ data }: { data: DailyStat[] }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} margin={{ top: 10, right: 16, left: 8, bottom: 20 }}>
+      <LineChart data={data} margin={{ top: 10, right: 16, left: 8, bottom: 20 }}>
         <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
         <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 12 }} />
         <YAxis
@@ -43,10 +42,16 @@ export default function DailyStatsChart({ data }: { data: DailyStat[] }) {
           }}
           formatter={(value) => currency.format(Number(value))}
         />
-        <Legend />
-        <Bar dataKey="income" name="수입" fill="#64748b" radius={[4, 4, 0, 0]} />
-        <Bar dataKey="expense" name="지출" fill="#dc2626" radius={[4, 4, 0, 0]} />
-      </BarChart>
+        <Line
+          activeDot={{ r: 5, strokeWidth: 0 }}
+          dataKey="expense"
+          dot={{ r: 3, strokeWidth: 0 }}
+          name="지출"
+          stroke="#dc2626"
+          strokeWidth={3}
+          type="monotone"
+        />
+      </LineChart>
     </ResponsiveContainer>
   );
 }

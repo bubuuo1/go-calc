@@ -97,7 +97,7 @@ export default function StatsPage() {
     <>
       <Head>
         <title>일별 통계 | 고태윤 가계부</title>
-        <meta name="description" content="일별 수입 지출 그래프" />
+        <meta name="description" content="일별 지출 꺾은선 그래프" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -129,7 +129,7 @@ export default function StatsPage() {
 
           <section className="panel p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <h2 className="text-lg font-black">일별 수입 / 지출</h2>
+              <h2 className="text-lg font-black">일별 지출 추이</h2>
               <div className="flex items-center gap-2">
                 <button className="btn-small" type="button" onClick={() => shiftMonth(-1)}>
                   이전
