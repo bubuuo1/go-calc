@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   createTransaction,
   deleteTransaction,
@@ -19,7 +19,7 @@ import type {
 import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
 import { getStoredMonth, markAppEntered, setStoredMonth } from "@/utils/session";
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 5;
 
 const currency = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -68,13 +68,15 @@ const DEFAULT_CATEGORIES = [
 
 export default function Home() {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [form, setForm] = useState<TransactionInput>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | TransactionType>("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [listQuery, setListQuery] = useState("");
+  const [listTypeFilter, setListTypeFilter] = useState<"all" | TransactionType>("all");
+  const [listCategoryFilter, setListCategoryFilter] = useState("all");
   const [visibleMonth, setVisibleMonth] = useState(currentMonthKey());
   const [pickerMonth, setPickerMonth] = useState(currentMonthKey());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -115,28 +117,28 @@ export default function Home() {
     }
   }, [router.isReady, router.query.month]);
 
-  const filteredTransactions = useMemo(() => {
+  const listFilteredTransactions = useMemo(() => {
     return transactions.filter((transaction) => {
       const matchesQuery = `${transaction.memo} ${transaction.category} ${
         paymentLabel[transaction.paymentMethod] || ""
       } ${inputterLabel[transaction.inputter || "husband"] || ""}`
         .toLowerCase()
-        .includes(query.toLowerCase());
-      const matchesType = typeFilter === "all" || transaction.type === typeFilter;
+        .includes(listQuery.toLowerCase());
+      const matchesType = listTypeFilter === "all" || transaction.type === listTypeFilter;
       const matchesCategory =
-        categoryFilter === "all" || transaction.category === categoryFilter;
+        listCategoryFilter === "all" || transaction.category === listCategoryFilter;
 
       return matchesQuery && matchesType && matchesCategory;
     });
-  }, [categoryFilter, query, transactions, typeFilter]);
+  }, [listCategoryFilter, listQuery, listTypeFilter, transactions]);
 
   useEffect(() => {
     setPage(1);
-  }, [categoryFilter, query, typeFilter]);
+  }, [listCategoryFilter, listQuery, listTypeFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(listFilteredTransactions.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pagedTransactions = filteredTransactions.slice(
+  const pagedTransactions = listFilteredTransactions.slice(
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE
   );
@@ -209,6 +211,11 @@ export default function Home() {
     });
     setPickerMonth(transaction.date.slice(0, 7));
     setIsPickerOpen(false);
+
+    window.setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      titleInputRef.current?.focus({ preventScroll: true });
+    }, 0);
   };
 
   const remove = async (id: string) => {
@@ -262,7 +269,7 @@ export default function Home() {
           </section>
 
           <section className="order-2 grid gap-4 sm:order-3 xl:grid-cols-[340px_1fr]">
-            <form onSubmit={submit} className="panel p-3">
+            <form ref={formRef} onSubmit={submit} className="scroll-mt-4 panel p-3">
               <h2 className="text-base font-black">{editingId ? "가계부 수정" : "가계부"}</h2>
 
               <div className="mt-3 grid gap-3">
@@ -284,6 +291,7 @@ export default function Home() {
                 <label className="grid gap-1 text-xs font-bold">
                   제목
                   <input
+                    ref={titleInputRef}
                     className="input"
                     value={form.memo}
                     onChange={(event) =>
@@ -463,15 +471,15 @@ export default function Home() {
                 <div className="grid gap-2 md:grid-cols-[1fr_120px_140px]">
                   <input
                     className="input"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    value={listQuery}
+                    onChange={(event) => setListQuery(event.target.value)}
                     placeholder="제목, 카테고리, 결제수단 검색"
                   />
                   <select
                     className="input"
-                    value={typeFilter}
+                    value={listTypeFilter}
                     onChange={(event) =>
-                      setTypeFilter(event.target.value as "all" | TransactionType)
+                      setListTypeFilter(event.target.value as "all" | TransactionType)
                     }
                   >
                     <option value="all">전체 유형</option>
@@ -480,8 +488,8 @@ export default function Home() {
                   </select>
                   <select
                     className="input"
-                    value={categoryFilter}
-                    onChange={(event) => setCategoryFilter(event.target.value)}
+                    value={listCategoryFilter}
+                    onChange={(event) => setListCategoryFilter(event.target.value)}
                   >
                     <option value="all">전체 카테고리</option>
                     {categories.map((category) => (
@@ -564,9 +572,9 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="mt-3 flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mt-3 flex flex-col items-center gap-2 text-center text-xs text-slate-500">
                   <span>
-                    총 {filteredTransactions.length}건 · {currentPage}/{totalPages} 페이지
+                    총 {listFilteredTransactions.length}건 · {currentPage}/{totalPages} 페이지
                   </span>
                   <div className="flex gap-2">
                     <button
