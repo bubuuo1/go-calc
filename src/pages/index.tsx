@@ -220,7 +220,7 @@ export default function Home() {
 
       <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">
-          <header className="flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
+          <header className="order-1 flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
                 고태윤 가계부
@@ -229,7 +229,7 @@ export default function Home() {
                 수입 지출 관리
               </h1>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="hidden flex-col gap-2 sm:flex sm:flex-row sm:items-end">
               <Link
                 className="btn-secondary inline-flex h-9 items-center justify-center"
                 href="/totals"
@@ -247,13 +247,13 @@ export default function Home() {
             </div>
           </header>
 
-          <section className="grid gap-3 md:grid-cols-3">
+          <section className="order-3 grid gap-3 sm:order-2 md:grid-cols-3">
             <SummaryCard label={`${visibleMonth} 수입`} tone="income" value={monthlyStats.income} />
             <SummaryCard label={`${visibleMonth} 지출`} tone="expense" value={monthlyStats.expense} />
             <SummaryCard label={`${visibleMonth} 잔액`} tone="primary" value={monthlyStats.balance} />
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-[340px_1fr]">
+          <section className="order-2 grid gap-4 sm:order-3 xl:grid-cols-[340px_1fr]">
             <form onSubmit={submit} className="panel p-3">
               <h2 className="text-base font-black">{editingId ? "가계부 수정" : "가계부"}</h2>
 
@@ -569,6 +569,23 @@ export default function Home() {
 
             </div>
           </section>
+
+          <nav className="order-4 grid grid-cols-2 gap-2 sm:hidden">
+            <Link
+              className="btn-secondary inline-flex h-10 items-center justify-center"
+              href="/totals"
+              replace
+            >
+              전체 통계 보기
+            </Link>
+            <Link
+              className="btn-secondary inline-flex h-10 items-center justify-center"
+              href="/stats"
+              replace
+            >
+              일별 그래프 보기
+            </Link>
+          </nav>
         </div>
       </main>
     </>
