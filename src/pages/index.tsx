@@ -16,6 +16,7 @@ import type {
   TransactionType
 } from "@/types/transaction";
 import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
+import { getStoredMonth, markAppEntered, setStoredMonth } from "@/utils/session";
 
 const PAGE_SIZE = 8;
 
@@ -91,12 +92,20 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!router.isReady || !isMonthKey(router.query.month)) {
+    if (!router.isReady) {
       return;
     }
 
-    setVisibleMonth(router.query.month);
-    setPickerMonth(router.query.month);
+    markAppEntered();
+    const queryMonth = router.query.month;
+    const nextMonth = isMonthKey(queryMonth) ? queryMonth : getStoredMonth();
+    setVisibleMonth(nextMonth);
+    setPickerMonth(nextMonth);
+    setStoredMonth(nextMonth);
+
+    if (isMonthKey(queryMonth)) {
+      router.replace(router.pathname, undefined, { shallow: true });
+    }
   }, [router.isReady, router.query.month]);
 
   const filteredTransactions = useMemo(() => {
@@ -147,9 +156,7 @@ export default function Home() {
   const changeMonth = (delta: number) => {
     const nextMonth = shiftMonth(visibleMonth, delta);
     setVisibleMonth(nextMonth);
-    router.replace({ pathname: router.pathname, query: { ...router.query, month: nextMonth } }, undefined, {
-      shallow: true
-    });
+    setStoredMonth(nextMonth);
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -211,28 +218,28 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#3a0508,transparent_32%),linear-gradient(135deg,#070707,#191919_55%,#b5121b)] text-zinc-50">
+      <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">
-          <header className="flex flex-col gap-3 border-b border-red-500/40 pb-3 sm:flex-row sm:items-end sm:justify-between">
+          <header className="flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
                 고태윤 가계부
               </p>
-              <h1 className="mt-1 text-3xl font-black tracking-normal text-white">
+              <h1 className="mt-1 text-3xl font-black tracking-normal text-slate-950">
                 수입 지출 관리
               </h1>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
               <Link
                 className="btn-secondary inline-flex h-9 items-center justify-center"
-                href={{ pathname: "/totals", query: { month: visibleMonth } }}
+                href="/totals"
                 replace
               >
                 전체 통계 보기
               </Link>
               <Link
                 className="btn-secondary inline-flex h-9 items-center justify-center"
-                href={{ pathname: "/stats", query: { month: visibleMonth } }}
+                href="/stats"
                 replace
               >
                 일별 그래프 보기
@@ -248,7 +255,7 @@ export default function Home() {
 
           <section className="grid gap-4 xl:grid-cols-[340px_1fr]">
             <form onSubmit={submit} className="panel p-3">
-              <h2 className="text-base font-black">{editingId ? "거래 수정" : "거래 추가"}</h2>
+              <h2 className="text-base font-black">{editingId ? "가계부 수정" : "가계부"}</h2>
 
               <div className="mt-3 grid gap-3">
                 <SegmentedTransactionType
@@ -261,6 +268,18 @@ export default function Home() {
                     setForm((current) => ({ ...current, paymentMethod }))
                   }
                 />
+
+                <label className="grid gap-1 text-xs font-bold">
+                  제목
+                  <input
+                    className="input"
+                    value={form.memo}
+                    onChange={(event) =>
+                      setForm((value) => ({ ...value, memo: event.target.value }))
+                    }
+                    placeholder="점심 식사"
+                  />
+                </label>
 
                 <label className="grid gap-1 text-xs font-bold">
                   금액
@@ -280,23 +299,6 @@ export default function Home() {
 
                 <div className="grid gap-2">
                   <label className="grid gap-1 text-xs font-bold">
-                    카테고리
-                    <select
-                      className="input min-w-0"
-                      value={form.category}
-                      onChange={(event) =>
-                        setForm((value) => ({ ...value, category: event.target.value }))
-                      }
-                    >
-                      {categories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="grid gap-1 text-xs font-bold">
                     날짜
                     <div className="relative grid grid-cols-[minmax(0,1fr)_42px] gap-1.5">
                       <input
@@ -310,11 +312,30 @@ export default function Home() {
                       />
                       <button
                         aria-label="달력 열기"
-                        className="h-9 min-w-0 rounded-md border border-red-300/70 bg-red-800 text-xs font-black text-white shadow-sm shadow-black/40 transition hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300/60"
+                        className="h-9 min-w-0 rounded-md border border-slate-500 bg-slate-500 text-xs font-black text-white shadow-sm shadow-slate-200 transition hover:bg-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
                         type="button"
                         onClick={() => setIsPickerOpen((value) => !value)}
                       >
-                        달
+                        <svg
+                          aria-hidden="true"
+                          className="mx-auto h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M8 2v4" />
+                          <path d="M16 2v4" />
+                          <rect height="18" rx="3" width="18" x="3" y="4" />
+                          <path d="M3 10h18" />
+                          <path d="M8 14h.01" />
+                          <path d="M12 14h.01" />
+                          <path d="M16 14h.01" />
+                          <path d="M8 18h.01" />
+                          <path d="M12 18h.01" />
+                        </svg>
                       </button>
                       {isPickerOpen ? (
                         <div className="absolute right-0 top-11 z-30 w-72">
@@ -332,19 +353,24 @@ export default function Home() {
                       ) : null}
                     </div>
                   </label>
-                </div>
 
-                <label className="grid gap-1 text-xs font-bold">
-                  메모
-                  <input
-                    className="input"
-                    value={form.memo}
-                    onChange={(event) =>
-                      setForm((value) => ({ ...value, memo: event.target.value }))
-                    }
-                    placeholder="점심 식사"
-                  />
-                </label>
+                  <label className="grid gap-1 text-xs font-bold">
+                    카테고리
+                    <select
+                      className="input min-w-0"
+                      value={form.category}
+                      onChange={(event) =>
+                        setForm((value) => ({ ...value, category: event.target.value }))
+                      }
+                    >
+                      {categories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <button className="btn-primary" type="submit">
@@ -385,11 +411,11 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-7 overflow-hidden rounded-md border border-red-900/60 bg-zinc-950">
+                <div className="mt-3 grid grid-cols-7 overflow-hidden rounded-md border border-slate-200 bg-white">
                   {["일", "월", "화", "수", "목", "금", "토"].map((day) => (
                     <div
                       key={day}
-                      className="border-b border-red-900/60 bg-black px-1 py-1.5 text-center text-[11px] font-black text-red-200"
+                      className="border-b border-slate-200 bg-slate-50 px-1 py-1.5 text-center text-[11px] font-black text-slate-600"
                     >
                       {day}
                     </div>
@@ -397,18 +423,18 @@ export default function Home() {
                   {calendarDays.map((day, index) => (
                     <div
                       key={day?.date || `empty-${index}`}
-                      className="min-h-16 border-b border-r border-red-900/50 p-1.5 last:border-r-0"
+                      className="min-h-16 border-b border-r border-slate-100 p-1.5 last:border-r-0"
                     >
                       {day ? (
                         <>
-                          <p className="text-xs font-black text-white">{day.dayNumber}</p>
+                          <p className="text-xs font-black text-slate-950">{day.dayNumber}</p>
                           <div className="mt-1 grid gap-0.5 text-[10px] font-bold leading-tight">
-                            <span className="text-emerald-300">
+                            <span className="text-slate-600">
                               <span className="money inline-block">
                                 + {day.income ? compactWon(day.income) : "0"}
                               </span>
                             </span>
-                            <span className="text-red-300">
+                            <span className="text-red-600">
                               <span className="money inline-block">
                                 - {day.expense ? compactWon(day.expense) : "0"}
                               </span>
@@ -427,7 +453,7 @@ export default function Home() {
                     className="input"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="메모, 카테고리, 결제수단 검색"
+                    placeholder="제목, 카테고리, 결제수단 검색"
                   />
                   <select
                     className="input"
@@ -454,33 +480,33 @@ export default function Home() {
                   </select>
                 </div>
 
-                <div className="mt-3 overflow-hidden rounded-md border border-red-900/60">
+                <div className="mt-3 overflow-hidden rounded-md border border-slate-200">
                   {pagedTransactions.length === 0 ? (
-                    <p className="p-5 text-center text-sm text-zinc-400">
+                    <p className="p-5 text-center text-sm text-slate-500">
                       표시할 거래가 없습니다.
                     </p>
                   ) : (
                     pagedTransactions.map((transaction) => (
                       <article
                         key={transaction.id}
-                        className="grid gap-2 border-b border-red-900/50 bg-zinc-950/70 px-3 py-2.5 last:border-0 md:grid-cols-[70px_1fr_130px_105px]"
+                        className="grid gap-2 border-b border-slate-100 bg-white px-3 py-2.5 last:border-0 md:grid-cols-[70px_1fr_130px_105px]"
                       >
                         <div>
                           <span
                             className={`rounded px-2 py-1 text-[11px] font-black ${
                               transaction.type === "income"
-                                ? "bg-emerald-950 text-emerald-300"
-                                : "bg-red-950 text-red-300"
+                                ? "bg-slate-100 text-slate-700"
+                                : "bg-red-50 text-red-700"
                             }`}
                           >
                             {transaction.type === "income" ? "수입" : "지출"}
                           </span>
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-white">
-                            {transaction.memo || "메모 없음"}
+                          <p className="text-sm font-bold text-slate-950">
+                            {transaction.memo || "제목 없음"}
                           </p>
-                          <p className="mt-0.5 text-xs text-zinc-400">
+                          <p className="mt-0.5 text-xs text-slate-500">
                             {transaction.category} ·{" "}
                             {paymentLabel[transaction.paymentMethod || "card"]} ·{" "}
                             {transaction.date}
@@ -489,8 +515,8 @@ export default function Home() {
                         <p
                           className={`money text-sm font-black ${
                             transaction.type === "income"
-                              ? "text-emerald-300"
-                              : "text-red-300"
+                              ? "text-slate-600"
+                              : "text-red-600"
                           }`}
                         >
                           {currency.format(transaction.amount)}
@@ -516,7 +542,7 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="mt-3 flex flex-col gap-2 text-xs text-zinc-300 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mt-3 flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
                   <span>
                     총 {filteredTransactions.length}건 · {currentPage}/{totalPages} 페이지
                   </span>
@@ -557,7 +583,7 @@ function SegmentedTransactionType({
   onChange: (type: TransactionType) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-1.5 rounded-md bg-zinc-950 p-1">
+    <div className="grid grid-cols-2 gap-1.5 rounded-md bg-slate-50 p-1">
       {(["expense", "income"] as TransactionType[]).map((type) => (
         <button
           key={type}
@@ -565,8 +591,8 @@ function SegmentedTransactionType({
           onClick={() => onChange(type)}
           className={`rounded px-3 py-1.5 text-xs font-black ${
             value === type
-              ? "border border-red-300/70 bg-red-600 text-white shadow-sm"
-              : "border border-zinc-600 bg-zinc-900 text-zinc-100"
+              ? "border border-slate-500 bg-slate-500 text-white shadow-sm"
+              : "border border-slate-200 bg-white text-slate-600"
           }`}
         >
           {type === "expense" ? "지출" : "소득"}
@@ -584,7 +610,7 @@ function SegmentedPaymentMethod({
   onChange: (method: PaymentMethod) => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-1.5 rounded-md bg-zinc-950 p-1">
+    <div className="grid grid-cols-2 gap-1.5 rounded-md bg-slate-50 p-1">
       {(["card", "cash"] as PaymentMethod[]).map((method) => (
         <button
           key={method}
@@ -592,8 +618,8 @@ function SegmentedPaymentMethod({
           onClick={() => onChange(method)}
           className={`rounded px-3 py-1.5 text-xs font-black ${
             value === method
-              ? "border border-red-300 bg-white text-zinc-950 shadow-sm"
-              : "border border-zinc-600 bg-zinc-900 text-zinc-100"
+              ? "border border-slate-500 bg-slate-500 text-white shadow-sm"
+              : "border border-slate-200 bg-white text-slate-600"
           }`}
         >
           {paymentLabel[method]}
@@ -617,7 +643,7 @@ function MiniDatePicker({
   const days = buildMonthDays(month);
 
   return (
-    <div className="rounded-md border border-red-900/70 bg-zinc-950 p-3 shadow-2xl shadow-black">
+    <div className="rounded-md border border-slate-200 bg-white p-3 shadow-xl shadow-slate-200/80">
       <div className="mb-2 flex items-center justify-between">
         <button className="btn-small" type="button" onClick={() => onMonthChange(shiftMonth(month, -1))}>
           이전
@@ -629,7 +655,7 @@ function MiniDatePicker({
       </div>
       <div className="grid grid-cols-7 gap-1 text-center text-xs">
         {["일", "월", "화", "수", "목", "금", "토"].map((day) => (
-          <span key={day} className="py-1 font-black text-red-200">
+          <span key={day} className="py-1 font-black text-slate-600">
             {day}
           </span>
         ))}
@@ -638,9 +664,9 @@ function MiniDatePicker({
             key={day?.date || `empty-picker-${index}`}
             className={`h-7 rounded text-xs font-black ${
               day?.date === selectedDate
-                ? "bg-red-700 text-white"
+                ? "bg-slate-500 text-white"
                 : day
-                  ? "border border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-red-400 hover:bg-red-900"
+                  ? "border border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400 hover:bg-white"
                   : "bg-transparent"
             }`}
             disabled={!day}
@@ -665,14 +691,14 @@ function SummaryCard({
   value: number;
 }) {
   const toneClass = {
-    income: "text-emerald-300",
-    expense: "text-red-300",
-    primary: "text-white"
+    income: "text-slate-600",
+    expense: "text-red-600",
+    primary: "text-slate-950"
   }[tone];
 
   return (
     <div className="panel p-3">
-      <p className="text-xs font-bold text-zinc-400">{label}</p>
+      <p className="text-xs font-bold text-slate-500">{label}</p>
       <p className={`money mt-1 text-lg font-black sm:text-xl ${toneClass}`}>
         {currency.format(value)}
       </p>

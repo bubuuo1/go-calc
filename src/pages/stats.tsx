@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getTransactions } from "@/services/api";
 import type { Transaction } from "@/types/transaction";
 import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
+import { getStoredMonth, hasAppEntered, setStoredMonth } from "@/utils/session";
 
 const currency = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -15,7 +16,7 @@ const currency = new Intl.NumberFormat("ko-KR", {
 
 const DailyStatsChart = dynamic(() => import("@/components/DailyStatsChart"), {
   ssr: false,
-  loading: () => <div className="h-full rounded-md bg-zinc-950/60" />
+  loading: () => <div className="h-full rounded-md bg-slate-50" />
 });
 
 export default function StatsPage() {
@@ -36,11 +37,23 @@ export default function StatsPage() {
   }, []);
 
   useEffect(() => {
-    if (!router.isReady || !isMonthKey(router.query.month)) {
+    if (!router.isReady) {
       return;
     }
 
-    setMonth(router.query.month);
+    if (!hasAppEntered()) {
+      router.replace("/");
+      return;
+    }
+
+    const queryMonth = router.query.month;
+    const nextMonth = isMonthKey(queryMonth) ? queryMonth : getStoredMonth();
+    setMonth(nextMonth);
+    setStoredMonth(nextMonth);
+
+    if (isMonthKey(queryMonth)) {
+      router.replace(router.pathname, undefined, { shallow: true });
+    }
   }, [router.isReady, router.query.month]);
 
   const dailyStats = useMemo(() => {
@@ -77,9 +90,7 @@ export default function StatsPage() {
   const shiftMonth = (delta: number) => {
     const nextMonth = shiftMonthKey(month, delta);
     setMonth(nextMonth);
-    router.replace({ pathname: router.pathname, query: { ...router.query, month: nextMonth } }, undefined, {
-      shallow: true
-    });
+    setStoredMonth(nextMonth);
   };
 
   return (
@@ -90,23 +101,23 @@ export default function StatsPage() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#3a0508,transparent_32%),linear-gradient(135deg,#070707,#191919_55%,#b5121b)] text-zinc-50">
+      <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-          <header className="flex flex-col gap-3 border-b border-red-500/40 pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <header className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.18em] text-red-300">
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
                 고태윤 가계부
               </p>
-              <h1 className="mt-1 text-4xl font-black tracking-normal text-white">
+              <h1 className="mt-1 text-4xl font-black tracking-normal text-slate-950">
                 일별 통계 그래프
               </h1>
             </div>
             <Link
               className="btn-secondary inline-flex h-10 items-center justify-center"
-              href={{ pathname: "/", query: { month } }}
+              href="/"
               replace
             >
-              입력 화면으로
+              가계부
             </Link>
           </header>
 
@@ -150,14 +161,14 @@ function SummaryCard({
   value: number;
 }) {
   const toneClass = {
-    income: "text-emerald-300",
-    expense: "text-red-300",
-    primary: "text-white"
+    income: "text-slate-600",
+    expense: "text-red-600",
+    primary: "text-slate-950"
   }[tone];
 
   return (
     <div className="panel p-4">
-      <p className="text-sm font-bold text-zinc-400">{label}</p>
+      <p className="text-sm font-bold text-slate-500">{label}</p>
       <p className={`money mt-2 text-xl font-black sm:text-2xl ${toneClass}`}>
         {currency.format(value)}
       </p>

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getTransactions } from "@/services/api";
 import type { Transaction } from "@/types/transaction";
 import { currentMonthKey, isMonthKey } from "@/utils/month";
+import { getStoredMonth, hasAppEntered, setStoredMonth } from "@/utils/session";
 
 const currency = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -38,21 +39,25 @@ export default function TotalsPage() {
   }, []);
 
   useEffect(() => {
-    if (!router.isReady || !isMonthKey(router.query.month)) {
+    if (!router.isReady) {
       return;
     }
 
-    setSelectedMonth(router.query.month);
-    setSelectedYear(router.query.month.slice(0, 4));
+    if (!hasAppEntered()) {
+      router.replace("/");
+      return;
+    }
+
+    const queryMonth = router.query.month;
+    const nextMonth = isMonthKey(queryMonth) ? queryMonth : getStoredMonth();
+    setSelectedMonth(nextMonth);
+    setSelectedYear(nextMonth.slice(0, 4));
+    setStoredMonth(nextMonth);
+
+    if (isMonthKey(queryMonth)) {
+      router.replace(router.pathname, undefined, { shallow: true });
+    }
   }, [router.isReady, router.query.month]);
-
-  const years = useMemo(() => {
-    const transactionYears = Array.from(
-      new Set(transactions.map((transaction) => transaction.date.slice(0, 4)))
-    ).sort((left, right) => right.localeCompare(left));
-
-    return transactionYears.length > 0 ? transactionYears : [selectedYear];
-  }, [selectedYear, transactions]);
 
   const yearTransactions = useMemo(
     () => transactions.filter((transaction) => transaction.date.startsWith(selectedYear)),
@@ -61,10 +66,15 @@ export default function TotalsPage() {
 
   const yearlyTotal = useMemo(() => buildTotals(yearTransactions), [yearTransactions]);
   const monthlyRows = useMemo(() => groupTotals(yearTransactions, 7), [yearTransactions]);
-  const linkedMonth = `${selectedYear}-${selectedMonth.slice(5, 7)}`;
 
   const shiftYear = (delta: number) => {
-    setSelectedYear((year) => String(Number(year) + delta));
+    setSelectedYear((year) => {
+      const nextYear = String(Number(year) + delta);
+      const nextMonth = `${nextYear}-${selectedMonth.slice(5, 7)}`;
+      setSelectedMonth(nextMonth);
+      setStoredMonth(nextMonth);
+      return nextYear;
+    });
   };
 
   return (
@@ -75,35 +85,35 @@ export default function TotalsPage() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#3a0508,transparent_32%),linear-gradient(135deg,#070707,#191919_55%,#b5121b)] text-zinc-50">
+      <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
-          <header className="flex flex-col gap-3 border-b border-red-500/40 pb-4 sm:flex-row sm:items-end sm:justify-between">
+          <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-black uppercase tracking-[0.18em] text-red-300">
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
                 고태윤 가계부
               </p>
-              <h1 className="mt-1 text-4xl font-black tracking-normal text-white">
+              <h1 className="mt-1 text-4xl font-black tracking-normal text-slate-950">
                 전체 통계
               </h1>
             </div>
             <nav className="flex flex-wrap gap-2">
               <Link
                 className="btn-secondary inline-flex h-10 items-center justify-center"
-                href={{ pathname: "/", query: { month: linkedMonth } }}
+                href="/"
                 replace
               >
-                입력 화면
+                가계부
               </Link>
               <Link
                 className="btn-secondary inline-flex h-10 items-center justify-center"
-                href={{ pathname: "/stats", query: { month: linkedMonth } }}
+                href="/stats"
                 replace
               >
                 일별 그래프
               </Link>
               <Link
                 className="btn-secondary inline-flex h-10 items-center justify-center"
-                href={{ pathname: "/categories", query: { month: linkedMonth } }}
+                href="/categories"
                 replace
               >
                 카테고리 분석
@@ -117,17 +127,9 @@ export default function TotalsPage() {
               <button className="btn-small" type="button" onClick={() => shiftYear(-1)}>
                 이전
               </button>
-              <select
-                className="input h-10 w-32"
-                value={selectedYear}
-                onChange={(event) => setSelectedYear(event.target.value)}
-              >
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}년
-                  </option>
-                ))}
-              </select>
+              <strong className="min-w-28 rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-center text-base font-black text-slate-900">
+                {selectedYear}년
+              </strong>
               <button className="btn-small" type="button" onClick={() => shiftYear(1)}>
                 다음
               </button>
@@ -163,14 +165,14 @@ function SummaryCard({
   value: number;
 }) {
   const toneClass = {
-    income: "text-emerald-300",
-    expense: "text-red-300",
-    primary: "text-white"
+    income: "text-slate-600",
+    expense: "text-red-600",
+    primary: "text-slate-950"
   }[tone];
 
   return (
     <div className="panel p-4">
-      <p className="text-sm font-bold text-zinc-400">{label}</p>
+      <p className="text-sm font-bold text-slate-500">{label}</p>
       <p className={`money mt-2 text-xl font-black sm:text-2xl ${toneClass}`}>
         {currency.format(value)}
       </p>
@@ -192,31 +194,31 @@ function TotalTable({
       <h2 className="text-lg font-black">{title}</h2>
       <div className="mt-4 grid gap-2 md:hidden">
         {rows.length === 0 ? (
-          <p className="rounded-md border border-red-900/60 bg-zinc-950/70 px-3 py-8 text-center text-sm text-zinc-400">
+          <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-8 text-center text-sm text-slate-500">
             {emptyText}
           </p>
         ) : (
           rows.map((row) => (
             <article
               key={row.key}
-              className="rounded-md border border-red-900/60 bg-zinc-950/70 p-3"
+              className="rounded-md border border-slate-200 bg-white p-3"
             >
               <div className="mb-2 flex items-center justify-between gap-3">
-                <strong className="text-sm text-white">{row.key}</strong>
-                <span className="money text-sm font-black text-white">
+                <strong className="text-sm text-slate-950">{row.key}</strong>
+                <span className="money text-sm font-black text-slate-950">
                   {currency.format(row.balance)}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded bg-black/70 p-2">
-                  <p className="text-zinc-400">수입</p>
-                  <p className="money mt-1 font-black text-emerald-300">
+                <div className="rounded bg-slate-50 p-2">
+                  <p className="text-slate-500">수입</p>
+                  <p className="money mt-1 font-black text-slate-600">
                     {currency.format(row.income)}
                   </p>
                 </div>
-                <div className="rounded bg-black/70 p-2">
-                  <p className="text-zinc-400">지출</p>
-                  <p className="money mt-1 font-black text-red-300">
+                <div className="rounded bg-slate-50 p-2">
+                  <p className="text-slate-500">지출</p>
+                  <p className="money mt-1 font-black text-red-600">
                     {currency.format(row.expense)}
                   </p>
                 </div>
@@ -225,9 +227,9 @@ function TotalTable({
           ))
         )}
       </div>
-      <div className="mt-4 hidden overflow-hidden rounded-md border border-red-900/60 md:block">
+      <div className="mt-4 hidden overflow-hidden rounded-md border border-slate-200 md:block">
         <table className="w-full table-fixed text-sm">
-          <thead className="bg-black text-xs text-red-200">
+          <thead className="bg-slate-50 text-xs text-slate-600">
             <tr>
               <th className="px-3 py-2 text-left">기간</th>
               <th className="px-3 py-2 text-right">수입</th>
@@ -238,21 +240,21 @@ function TotalTable({
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td className="px-3 py-8 text-center text-zinc-400" colSpan={4}>
+                <td className="px-3 py-8 text-center text-slate-500" colSpan={4}>
                   {emptyText}
                 </td>
               </tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.key} className="border-t border-red-900/50 bg-zinc-950/70">
-                  <td className="px-3 py-2 font-black text-white">{row.key}</td>
-                  <td className="money px-3 py-2 font-bold text-emerald-300">
+                <tr key={row.key} className="border-t border-slate-100 bg-white">
+                  <td className="px-3 py-2 font-black text-slate-950">{row.key}</td>
+                  <td className="money px-3 py-2 font-bold text-slate-600">
                     {currency.format(row.income)}
                   </td>
-                  <td className="money px-3 py-2 font-bold text-red-300">
+                  <td className="money px-3 py-2 font-bold text-red-600">
                     {currency.format(row.expense)}
                   </td>
-                  <td className="money px-3 py-2 font-black text-white">
+                  <td className="money px-3 py-2 font-black text-slate-950">
                     {currency.format(row.balance)}
                   </td>
                 </tr>
