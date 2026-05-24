@@ -5,9 +5,12 @@ const MONTH_KEY = "go-calc:selected-month";
 const ENTERED_KEY = "go-calc:entered";
 const INPUTTER_KEY = "go-calc:inputter";
 const EDIT_TRANSACTION_KEY = "go-calc:edit-transaction-id";
+const EDIT_RETURN_PATH_KEY = "go-calc:edit-return-path";
 
 const canUseSession = () => typeof window !== "undefined";
 const isInputter = (value: unknown): value is Inputter => value === "husband" || value === "wife";
+const isEditReturnPath = (value: unknown): value is "/ledger" | "/transactions" =>
+  value === "/ledger" || value === "/transactions";
 
 export const markAppEntered = () => {
   if (canUseSession()) {
@@ -65,5 +68,26 @@ export const setStoredEditTransactionId = (id: string) => {
 export const clearStoredEditTransactionId = () => {
   if (canUseSession()) {
     window.sessionStorage.removeItem(EDIT_TRANSACTION_KEY);
+  }
+};
+
+export const getStoredEditReturnPath = () => {
+  if (!canUseSession()) {
+    return null;
+  }
+
+  const storedPath = window.sessionStorage.getItem(EDIT_RETURN_PATH_KEY);
+  return isEditReturnPath(storedPath) ? storedPath : null;
+};
+
+export const setStoredEditReturnPath = (path: "/ledger" | "/transactions") => {
+  if (canUseSession()) {
+    window.sessionStorage.setItem(EDIT_RETURN_PATH_KEY, path);
+  }
+};
+
+export const clearStoredEditReturnPath = () => {
+  if (canUseSession()) {
+    window.sessionStorage.removeItem(EDIT_RETURN_PATH_KEY);
   }
 };

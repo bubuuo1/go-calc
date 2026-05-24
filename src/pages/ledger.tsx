@@ -8,6 +8,7 @@ import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
 import {
   getStoredMonth,
   hasAppEntered,
+  setStoredEditReturnPath,
   setStoredEditTransactionId,
   setStoredMonth
 } from "@/utils/session";
@@ -89,6 +90,7 @@ export default function LedgerPage() {
 
   const edit = (id: string) => {
     setStoredEditTransactionId(id);
+    setStoredEditReturnPath("/ledger");
     router.replace("/");
   };
 
@@ -107,8 +109,8 @@ export default function LedgerPage() {
               <div>
               <p className="flex items-center gap-2 text-lg font-black tracking-normal text-slate-900">
                 <span className="flex -space-x-2">
-                  <img alt="" className="h-8 w-8 rounded-full border-2 border-white object-cover shadow-sm" src="/images/2.png" />
-                  <img alt="" className="h-8 w-8 rounded-full border-2 border-white object-cover shadow-sm" src="/images/3.png" />
+                  <img alt="" className="h-11 w-11 rounded-full border-2 border-white object-cover shadow-sm sm:h-9 sm:w-9" src="/images/header-2.png" />
+                  <img alt="" className="h-11 w-11 rounded-full border-2 border-white object-cover shadow-sm sm:h-9 sm:w-9" src="/images/header-3.png" />
                 </span>
                 <span>솔샘네 가계부</span>
               </p>
