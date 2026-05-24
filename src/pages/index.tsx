@@ -1,7 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   createTransaction,
   getCategories,
@@ -56,10 +56,16 @@ const formatAmount = (value: number) => (value ? numberFormat.format(value) : ""
 
 export default function Home() {
   const router = useRouter();
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
+  const amountInputRef = useRef<HTMLInputElement | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [form, setForm] = useState<TransactionInput>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<{
+    field: "memo" | "amount";
+    message: string;
+  } | null>(null);
   const [selectedInputter, setSelectedInputter] = useState<Inputter | null>(null);
   const [visibleMonth, setVisibleMonth] = useState(currentMonthKey());
   const [pickerMonth, setPickerMonth] = useState(currentMonthKey());
@@ -142,15 +148,29 @@ export default function Home() {
 
     const payload = {
       ...form,
+      memo: form.memo.trim(),
       inputter: editingId ? form.inputter : selectedInputter || form.inputter,
       amount: Number(form.amount)
     };
 
-    if (!selectedInputter || !payload.amount || payload.amount < 0) {
+    if (!payload.memo) {
+      setValidationError({ field: "memo", message: "제목을 입력해 주세요." });
+      titleInputRef.current?.focus();
+      return;
+    }
+
+    if (!payload.amount || payload.amount < 0) {
+      setValidationError({ field: "amount", message: "금액을 입력해 주세요." });
+      amountInputRef.current?.focus();
+      return;
+    }
+
+    if (!selectedInputter) {
       return;
     }
 
     try {
+      setValidationError(null);
       if (editingId) {
         await updateTransaction(editingId, payload);
         setEditingId(null);
@@ -229,9 +249,9 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="grid grid-cols-3 gap-1.5">
-                  <IconNav href="/ledger" label="달력/리스트" type="ledger" />
+                  <IconNav href="/ledger" label="달력" type="ledger" />
+                  <IconNav href="/transactions" label="거래리스트" type="transactions" />
                   <IconNav href="/totals" label="전체통계" type="totals" />
-                  <IconNav href="/stats" label="그래프" type="stats" />
                 </div>
               </div>
 
@@ -250,35 +270,55 @@ export default function Home() {
                 <label className="grid gap-1 text-xs font-bold">
                   제목
                   <input
+                    ref={titleInputRef}
+                    aria-invalid={validationError?.field === "memo"}
                     className="input"
                     value={form.memo}
                     onChange={(event) => {
                       const memo = event.target.value;
                       const category = inferCategory(memo, categories);
+                      if (validationError?.field === "memo") {
+                        setValidationError(null);
+                      }
                       setForm((value) => ({
                         ...value,
                         memo,
                         category: category || value.category
                       }));
                     }}
-                    placeholder="점심 식사"
+                    placeholder="제목을 입력해주세요"
                   />
+                  {validationError?.field === "memo" ? (
+                    <span className="text-xs font-bold text-red-600">
+                      {validationError.message}
+                    </span>
+                  ) : null}
                 </label>
 
                 <label className="grid gap-1 text-xs font-bold">
                   금액
                   <input
+                    ref={amountInputRef}
+                    aria-invalid={validationError?.field === "amount"}
                     className="input text-right"
                     inputMode="numeric"
                     value={formatAmount(form.amount)}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      if (validationError?.field === "amount") {
+                        setValidationError(null);
+                      }
                       setForm((value) => ({
                         ...value,
                         amount: parseAmount(event.target.value)
-                      }))
-                    }
+                      }));
+                    }}
                     placeholder="금액을 입력하세요"
                   />
+                  {validationError?.field === "amount" ? (
+                    <span className="text-xs font-bold text-red-600">
+                      {validationError.message}
+                    </span>
+                  ) : null}
                 </label>
 
                 <div className="grid gap-2">
@@ -376,6 +416,7 @@ export default function Home() {
                         date: form.date,
                         category: categories[0] || "기타"
                       });
+                      setValidationError(null);
                       setPickerMonth(form.date.slice(0, 7));
                       setIsPickerOpen(false);
                     }}
@@ -400,7 +441,7 @@ function IconNav({
 }: {
   href: string;
   label: string;
-  type: "ledger" | "totals" | "stats";
+  type: "ledger" | "transactions" | "totals";
 }) {
   return (
     <Link
@@ -429,10 +470,14 @@ function IconNav({
           <path d="M16 16v-3" />
         </svg>
       ) : null}
-      {type === "stats" ? (
+      {type === "transactions" ? (
         <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M4 19h16" />
-          <path d="M4 15l4-4 4 3 5-7 3 4" />
+          <path d="M8 6h13" />
+          <path d="M8 12h13" />
+          <path d="M8 18h13" />
+          <path d="M3 6h.01" />
+          <path d="M3 12h.01" />
+          <path d="M3 18h.01" />
         </svg>
       ) : null}
     </Link>

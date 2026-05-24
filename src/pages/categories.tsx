@@ -85,32 +85,35 @@ export default function CategoriesPage() {
 
       <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">
-          <header className="flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
+          <header className="flex flex-col gap-3 border-b border-slate-200 pb-3">
+            <div className="flex items-end justify-between gap-3">
+              <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
                 고태윤 가계부
               </p>
               <h1 className="mt-1 text-3xl font-black tracking-normal text-slate-950">
                 카테고리별 지출
               </h1>
+              </div>
+              <IconNav href="/" label="가계부" type="home" />
             </div>
-            <div className="flex gap-2">
-              <Link
-                className="btn-secondary inline-flex h-9 items-center justify-center"
-                href="/"
-                replace
-              >
-                가계부
-              </Link>
-              <Link
-                className="btn-secondary inline-flex h-9 items-center justify-center"
-                href="/stats"
-                replace
-              >
-                일별 그래프
-              </Link>
+            <div className="flex flex-wrap justify-center gap-2">
+              <IconNav href="/totals" label="전체 통계" type="totals" />
+              <IconNav href="/stats" label="일별 그래프" type="stats" />
             </div>
           </header>
+
+          <section className="panel flex justify-center p-3">
+            <div className="flex items-center gap-2">
+              <button className="btn-small" type="button" onClick={() => shiftMonth(-1)}>
+                이전
+              </button>
+              <strong className="min-w-28 text-center text-base font-black">{month}</strong>
+              <button className="btn-small" type="button" onClick={() => shiftMonth(1)}>
+                다음
+              </button>
+            </div>
+          </section>
 
           <section className="grid gap-3 md:grid-cols-3">
             <SummaryCard label={`${month} 총 지출`} value={totalExpense} tone="expense" />
@@ -119,15 +122,12 @@ export default function CategoriesPage() {
               value={categoryStats[0]?.amount || 0}
               tone="primary"
             />
-            <div className="panel flex items-center justify-between gap-2 p-3">
-              <button className="btn-small" type="button" onClick={() => shiftMonth(-1)}>
-                이전
-              </button>
-              <strong className="text-base">{month}</strong>
-              <button className="btn-small" type="button" onClick={() => shiftMonth(1)}>
-                다음
-              </button>
-            </div>
+            <SummaryCard
+              label="카테고리 수"
+              value={categoryStats.length}
+              tone="primary"
+              valueType="count"
+            />
           </section>
 
           <section className="panel p-3">
@@ -162,14 +162,59 @@ export default function CategoriesPage() {
   );
 }
 
+function IconNav({
+  href,
+  label,
+  type
+}: {
+  href: string;
+  label: string;
+  type: "home" | "totals" | "stats";
+}) {
+  return (
+    <Link
+      aria-label={label}
+      className="grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-400 hover:text-slate-950"
+      href={href}
+      replace
+      title={label}
+    >
+      {type === "home" ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M3 11l9-8 9 8" />
+          <path d="M5 10v10h14V10" />
+          <path d="M9 20v-6h6v6" />
+        </svg>
+      ) : null}
+      {type === "totals" ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M4 19V5" />
+          <path d="M4 19h16" />
+          <path d="M8 16v-5" />
+          <path d="M12 16V8" />
+          <path d="M16 16v-3" />
+        </svg>
+      ) : null}
+      {type === "stats" ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M4 19h16" />
+          <path d="M4 15l4-4 4 3 5-7 3 4" />
+        </svg>
+      ) : null}
+    </Link>
+  );
+}
+
 function SummaryCard({
   label,
   tone,
-  value
+  value,
+  valueType = "currency"
 }: {
   label: string;
   tone: "expense" | "primary";
   value: number;
+  valueType?: "currency" | "count";
 }) {
   const toneClass = {
     expense: "text-red-600",
@@ -180,7 +225,7 @@ function SummaryCard({
     <div className="panel p-3">
       <p className="text-xs font-bold text-slate-500">{label}</p>
       <p className={`money mt-1 text-lg font-black sm:text-xl ${toneClass}`}>
-        {currency.format(value)}
+        {valueType === "count" ? `${value}개` : currency.format(value)}
       </p>
     </div>
   );

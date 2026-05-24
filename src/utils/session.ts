@@ -38,13 +38,13 @@ export const getStoredInputter = () => {
     return null;
   }
 
-  const storedInputter = window.localStorage.getItem(INPUTTER_KEY);
+  const storedInputter = window.sessionStorage.getItem(INPUTTER_KEY);
   return isInputter(storedInputter) ? storedInputter : null;
 };
 
 export const setStoredInputter = (inputter: Inputter) => {
   if (canUseSession()) {
-    window.localStorage.setItem(INPUTTER_KEY, inputter);
+    window.sessionStorage.setItem(INPUTTER_KEY, inputter);
   }
 };
 

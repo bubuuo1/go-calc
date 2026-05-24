@@ -11,12 +11,13 @@ export const DEFAULT_CATEGORIES = [
   "문화",
   "급여",
   "적금",
+  "대출",
   "보험",
   "경조사",
   "기타"
 ];
 
-export const EXCLUDED_GRAPH_CATEGORIES = ["적금", "보험", "경조사"];
+export const EXCLUDED_GRAPH_CATEGORIES = ["적금", "대출", "보험", "경조사"];
 
 export const paymentLabel: Record<PaymentMethod, string> = {
   cash: "현금",
@@ -38,6 +39,7 @@ export const inferCategory = (title: string, categories: string[]) => {
 
   const rules = [
     { category: "적금", keywords: ["적금", "저축", "예금", "청약"] },
+    { category: "대출", keywords: ["대출", "상환", "이자", "원리금"] },
     { category: "보험", keywords: ["보험", "실비", "자동차보험", "화재"] },
     { category: "경조사", keywords: ["경조사", "축의", "부의", "조의", "결혼", "장례"] },
     { category: "식비", keywords: ["식사", "점심", "저녁", "아침", "커피", "마트", "배달"] },

@@ -7,7 +7,7 @@ import { getTransactions } from "@/services/api";
 import type { Transaction } from "@/types/transaction";
 import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
 import { getStoredMonth, hasAppEntered, setStoredMonth } from "@/utils/session";
-import { EXCLUDED_GRAPH_CATEGORIES } from "@/utils/ledger";
+import { DEFAULT_CATEGORIES, EXCLUDED_GRAPH_CATEGORIES } from "@/utils/ledger";
 
 const currency = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -24,6 +24,9 @@ export default function StatsPage() {
   const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [month, setMonth] = useState(currentMonthKey());
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    DEFAULT_CATEGORIES.filter((category) => !EXCLUDED_GRAPH_CATEGORIES.includes(category))
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -57,6 +60,11 @@ export default function StatsPage() {
     }
   }, [router.isReady, router.query.month]);
 
+  const graphCategories = useMemo(() => {
+    const transactionCategories = transactions.map((transaction) => transaction.category);
+    return Array.from(new Set([...DEFAULT_CATEGORIES, ...transactionCategories]));
+  }, [transactions]);
+
   const dailyStats = useMemo(() => {
     const [year, monthNumber] = month.split("-").map(Number);
     const lastDay = new Date(year, monthNumber, 0).getDate();
@@ -64,7 +72,7 @@ export default function StatsPage() {
       .filter(
         (transaction) =>
           transaction.date.startsWith(month) &&
-          !EXCLUDED_GRAPH_CATEGORIES.includes(transaction.category)
+          selectedCategories.includes(transaction.category)
       )
       .reduce<Record<string, { income: number; expense: number }>>((totals, transaction) => {
         totals[transaction.date] = totals[transaction.date] || { income: 0, expense: 0 };
@@ -84,7 +92,7 @@ export default function StatsPage() {
         balance: dayTotals.income - dayTotals.expense
       };
     });
-  }, [month, transactions]);
+  }, [month, selectedCategories, transactions]);
 
   const totals = useMemo(() => {
     const income = dailyStats.reduce((sum, day) => sum + day.income, 0);
@@ -106,7 +114,7 @@ export default function StatsPage() {
         (transaction) =>
           transaction.type === "expense" &&
           transaction.date.startsWith(previousMonth) &&
-          !EXCLUDED_GRAPH_CATEGORIES.includes(transaction.category)
+          selectedCategories.includes(transaction.category)
       )
       .reduce((sum, transaction) => sum + transaction.amount, 0);
     const difference = totals.expense - previousExpense;
@@ -126,12 +134,20 @@ export default function StatsPage() {
       comparison,
       previousExpense
     };
-  }, [dailyStats, month, totals.expense, transactions]);
+  }, [dailyStats, month, selectedCategories, totals.expense, transactions]);
 
   const shiftMonth = (delta: number) => {
     const nextMonth = shiftMonthKey(month, delta);
     setMonth(nextMonth);
     setStoredMonth(nextMonth);
+  };
+
+  const toggleCategory = (category: string) => {
+    setSelectedCategories((current) =>
+      current.includes(category)
+        ? current.filter((item) => item !== category)
+        : [...current, category]
+    );
   };
 
   return (
@@ -144,31 +160,43 @@ export default function StatsPage() {
 
       <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-          <header className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
+          <header className="flex flex-col gap-3 border-b border-slate-200 pb-5">
+            <div className="flex items-end justify-between gap-3">
+              <div>
               <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
                 고태윤 가계부
               </p>
               <h1 className="mt-1 text-4xl font-black tracking-normal text-slate-950">
                 일별 통계 그래프
               </h1>
+              </div>
+              <IconNav href="/" label="가계부" type="home" />
             </div>
-            <Link
-              className="btn-secondary inline-flex h-10 items-center justify-center"
-              href="/"
-              replace
-            >
-              가계부
-            </Link>
+            <nav className="flex flex-wrap justify-center gap-2">
+              <IconNav href="/totals" label="전체 통계" type="totals" />
+              <IconNav href="/categories" label="카테고리별 지출" type="categories" />
+            </nav>
           </header>
 
-          <section className="grid gap-3 md:grid-cols-3">
+          <section className="order-1 panel flex justify-center p-3">
+            <div className="flex items-center gap-2">
+              <button className="btn-small" type="button" onClick={() => shiftMonth(-1)}>
+                이전
+              </button>
+              <strong className="min-w-28 text-center text-lg font-black">{month}</strong>
+              <button className="btn-small" type="button" onClick={() => shiftMonth(1)}>
+                다음
+              </button>
+            </div>
+          </section>
+
+          <section className="order-3 grid gap-3 md:order-2 md:grid-cols-3">
             <SummaryCard label="월 수입" value={totals.income} tone="income" />
             <SummaryCard label="월 지출" value={totals.expense} tone="expense" />
             <SummaryCard label="월 잔액" value={totals.balance} tone="primary" />
           </section>
 
-          <section className="grid gap-3 md:grid-cols-3">
+          <section className="order-4 grid gap-3 md:order-3 md:grid-cols-3">
             <InsightCard
               detail={
                 expenseInsights.topDayAmount > 0
@@ -190,27 +218,85 @@ export default function StatsPage() {
             />
           </section>
 
-          <section className="panel p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <h2 className="text-lg font-black">일별 지출 추이</h2>
-              <div className="flex items-center gap-2">
-                <button className="btn-small" type="button" onClick={() => shiftMonth(-1)}>
-                  이전
-                </button>
-                <strong className="min-w-28 text-center text-lg">{month}</strong>
-                <button className="btn-small" type="button" onClick={() => shiftMonth(1)}>
-                  다음
-                </button>
-              </div>
-            </div>
+          <section className="order-2 panel p-4 md:order-4">
+            <h2 className="text-center text-lg font-black md:text-left">일별 지출 추이</h2>
 
             <div className="mt-4 h-64 w-full sm:h-80 lg:h-[420px]">
               <DailyStatsChart data={dailyStats} />
             </div>
           </section>
+
+          <section className="order-5 panel p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-lg font-black">그래프 포함 카테고리</h2>
+              <span className="text-xs font-bold text-slate-500">
+                기본 제외: 적금, 대출, 경조사, 보험
+              </span>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {graphCategories.map((category) => (
+                <label
+                  key={category}
+                  className="flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700"
+                >
+                  <input
+                    checked={selectedCategories.includes(category)}
+                    className="h-4 w-4 accent-slate-600"
+                    type="checkbox"
+                    onChange={() => toggleCategory(category)}
+                  />
+                  <span className="truncate">{category}</span>
+                </label>
+              ))}
+            </div>
+          </section>
         </div>
       </main>
     </>
+  );
+}
+
+function IconNav({
+  href,
+  label,
+  type
+}: {
+  href: string;
+  label: string;
+  type: "home" | "totals" | "categories";
+}) {
+  return (
+    <Link
+      aria-label={label}
+      className="grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-400 hover:text-slate-950"
+      href={href}
+      replace
+      title={label}
+    >
+      {type === "home" ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M3 11l9-8 9 8" />
+          <path d="M5 10v10h14V10" />
+          <path d="M9 20v-6h6v6" />
+        </svg>
+      ) : null}
+      {type === "totals" ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M4 19V5" />
+          <path d="M4 19h16" />
+          <path d="M8 16v-5" />
+          <path d="M12 16V8" />
+          <path d="M16 16v-3" />
+        </svg>
+      ) : null}
+      {type === "categories" ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M4 6h16" />
+          <path d="M4 12h10" />
+          <path d="M4 18h7" />
+        </svg>
+      ) : null}
+    </Link>
   );
 }
 
