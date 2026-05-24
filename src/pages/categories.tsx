@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getTransactions } from "@/services/api";
 import type { Transaction } from "@/types/transaction";
 import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
+import { getStoredMonth, hasAppEntered, setStoredMonth } from "@/utils/session";
 
 const currency = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -30,11 +31,23 @@ export default function CategoriesPage() {
   }, []);
 
   useEffect(() => {
-    if (!router.isReady || !isMonthKey(router.query.month)) {
+    if (!router.isReady) {
       return;
     }
 
-    setMonth(router.query.month);
+    if (!hasAppEntered()) {
+      router.replace("/");
+      return;
+    }
+
+    const queryMonth = router.query.month;
+    const nextMonth = isMonthKey(queryMonth) ? queryMonth : getStoredMonth();
+    setMonth(nextMonth);
+    setStoredMonth(nextMonth);
+
+    if (isMonthKey(queryMonth)) {
+      router.replace(router.pathname, undefined, { shallow: true });
+    }
   }, [router.isReady, router.query.month]);
 
   const categoryStats = useMemo(() => {
@@ -59,9 +72,7 @@ export default function CategoriesPage() {
   const shiftMonth = (delta: number) => {
     const nextMonth = shiftMonthKey(month, delta);
     setMonth(nextMonth);
-    router.replace({ pathname: router.pathname, query: { ...router.query, month: nextMonth } }, undefined, {
-      shallow: true
-    });
+    setStoredMonth(nextMonth);
   };
 
   return (
@@ -72,28 +83,28 @@ export default function CategoriesPage() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#3a0508,transparent_32%),linear-gradient(135deg,#070707,#191919_55%,#b5121b)] text-zinc-50">
+      <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">
-          <header className="flex flex-col gap-3 border-b border-red-500/40 pb-3 sm:flex-row sm:items-end sm:justify-between">
+          <header className="flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
                 고태윤 가계부
               </p>
-              <h1 className="mt-1 text-3xl font-black tracking-normal text-white">
+              <h1 className="mt-1 text-3xl font-black tracking-normal text-slate-950">
                 카테고리별 지출
               </h1>
             </div>
             <div className="flex gap-2">
               <Link
                 className="btn-secondary inline-flex h-9 items-center justify-center"
-                href={{ pathname: "/", query: { month } }}
+                href="/"
                 replace
               >
-                입력 화면
+                가계부
               </Link>
               <Link
                 className="btn-secondary inline-flex h-9 items-center justify-center"
-                href={{ pathname: "/stats", query: { month } }}
+                href="/stats"
                 replace
               >
                 일별 그래프
@@ -121,7 +132,7 @@ export default function CategoriesPage() {
 
           <section className="panel p-3">
             {categoryStats.length === 0 ? (
-              <p className="p-5 text-center text-sm text-zinc-400">
+              <p className="p-5 text-center text-sm text-slate-500">
                 표시할 지출 데이터가 없습니다.
               </p>
             ) : (
@@ -129,14 +140,14 @@ export default function CategoriesPage() {
                 {categoryStats.map((item) => (
                   <div key={item.category}>
                     <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-black text-white">{item.category}</span>
-                      <span className="money ml-3 shrink-0 font-black text-red-300">
+                      <span className="font-black text-slate-950">{item.category}</span>
+                      <span className="money ml-3 shrink-0 font-black text-red-600">
                         {currency.format(item.amount)}
                       </span>
                     </div>
-                    <div className="h-3 rounded-full bg-zinc-800">
+                    <div className="h-3 rounded-full bg-slate-50">
                       <div
-                        className="h-3 rounded-full bg-red-600"
+                        className="h-3 rounded-full bg-red-500"
                         style={{ width: `${(item.amount / maxAmount) * 100}%` }}
                       />
                     </div>
@@ -161,13 +172,13 @@ function SummaryCard({
   value: number;
 }) {
   const toneClass = {
-    expense: "text-red-300",
-    primary: "text-white"
+    expense: "text-red-600",
+    primary: "text-slate-950"
   }[tone];
 
   return (
     <div className="panel p-3">
-      <p className="text-xs font-bold text-zinc-400">{label}</p>
+      <p className="text-xs font-bold text-slate-500">{label}</p>
       <p className={`money mt-1 text-lg font-black sm:text-xl ${toneClass}`}>
         {currency.format(value)}
       </p>
