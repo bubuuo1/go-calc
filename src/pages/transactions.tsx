@@ -132,8 +132,12 @@ export default function TransactionsPage() {
           <header className="border-b border-slate-200 pb-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-              <p className="text-lg font-black tracking-normal text-slate-900">
-                솔샘네 가계부
+              <p className="flex items-center gap-2 text-lg font-black tracking-normal text-slate-900">
+                <span className="flex -space-x-2">
+                  <img alt="" className="h-8 w-8 rounded-full border-2 border-white object-cover shadow-sm" src="/images/2.png" />
+                  <img alt="" className="h-8 w-8 rounded-full border-2 border-white object-cover shadow-sm" src="/images/3.png" />
+                </span>
+                <span>솔샘네 가계부</span>
               </p>
               </div>
               <Link
