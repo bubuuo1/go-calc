@@ -95,7 +95,7 @@ export default function LedgerPage() {
   return (
     <>
       <Head>
-        <title>달력 | 고태윤 가계부</title>
+        <title>달력 | 솔샘네 가계부</title>
         <meta name="description" content="월간 달력" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -106,7 +106,7 @@ export default function LedgerPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
               <p className="text-lg font-black tracking-normal text-slate-900">
-                고태윤 가계부
+                솔샘네 가계부
               </p>
               </div>
               <Link

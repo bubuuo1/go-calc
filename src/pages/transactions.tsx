@@ -122,7 +122,7 @@ export default function TransactionsPage() {
   return (
     <>
       <Head>
-        <title>거래리스트 | 고태윤 가계부</title>
+        <title>거래리스트 | 솔샘네 가계부</title>
         <meta name="description" content="거래리스트" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -133,7 +133,7 @@ export default function TransactionsPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
               <p className="text-lg font-black tracking-normal text-slate-900">
-                고태윤 가계부
+                솔샘네 가계부
               </p>
               </div>
               <Link
