@@ -87,37 +87,21 @@ export default function TotalsPage() {
 
       <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
-          <header className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
+          <header className="flex flex-col gap-3 border-b border-slate-200 pb-4">
+            <div className="flex items-end justify-between gap-3">
+              <div>
               <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
                 고태윤 가계부
               </p>
               <h1 className="mt-1 text-4xl font-black tracking-normal text-slate-950">
                 전체 통계
               </h1>
+              </div>
+              <IconNav href="/" label="가계부" type="home" />
             </div>
-            <nav className="flex flex-wrap gap-2">
-              <Link
-                className="btn-secondary inline-flex h-10 items-center justify-center"
-                href="/"
-                replace
-              >
-                가계부
-              </Link>
-              <Link
-                className="btn-secondary inline-flex h-10 items-center justify-center"
-                href="/stats"
-                replace
-              >
-                일별 그래프
-              </Link>
-              <Link
-                className="btn-secondary inline-flex h-10 items-center justify-center"
-                href="/categories"
-                replace
-              >
-                카테고리 분석
-              </Link>
+            <nav className="flex flex-wrap justify-center gap-2">
+              <IconNav href="/stats" label="일별 그래프" type="stats" />
+              <IconNav href="/categories" label="카테고리 분석" type="categories" />
             </nav>
           </header>
 
@@ -152,6 +136,47 @@ export default function TotalsPage() {
         </div>
       </main>
     </>
+  );
+}
+
+function IconNav({
+  href,
+  label,
+  type
+}: {
+  href: string;
+  label: string;
+  type: "home" | "stats" | "categories";
+}) {
+  return (
+    <Link
+      aria-label={label}
+      className="grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-400 hover:text-slate-950"
+      href={href}
+      replace
+      title={label}
+    >
+      {type === "home" ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M3 11l9-8 9 8" />
+          <path d="M5 10v10h14V10" />
+          <path d="M9 20v-6h6v6" />
+        </svg>
+      ) : null}
+      {type === "stats" ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M4 19h16" />
+          <path d="M4 15l4-4 4 3 5-7 3 4" />
+        </svg>
+      ) : null}
+      {type === "categories" ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M4 6h16" />
+          <path d="M4 12h10" />
+          <path d="M4 18h7" />
+        </svg>
+      ) : null}
+    </Link>
   );
 }
 
