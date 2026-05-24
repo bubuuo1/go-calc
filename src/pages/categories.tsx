@@ -78,7 +78,7 @@ export default function CategoriesPage() {
   return (
     <>
       <Head>
-        <title>카테고리 분석 | 고태윤 가계부</title>
+        <title>카테고리 분석 | 솔샘네 가계부</title>
         <meta name="description" content="카테고리별 지출 분석" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -89,7 +89,7 @@ export default function CategoriesPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
               <p className="text-lg font-black tracking-normal text-slate-900">
-                고태윤 가계부
+                솔샘네 가계부
               </p>
               </div>
               <IconNav href="/" label="가계부" type="home" />

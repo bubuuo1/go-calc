@@ -199,7 +199,7 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>고태윤 가계부</title>
+        <title>솔샘네 가계부</title>
         <meta name="description" content="Supabase 기반 가계부 입력 화면" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -209,7 +209,7 @@ export default function Home() {
           <header className="order-1 flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-lg font-black tracking-normal text-slate-900">
-                고태윤 가계부
+                솔샘네 가계부
               </p>
             </div>
             <div className="hidden flex-col gap-2 sm:flex sm:flex-row sm:items-end">
