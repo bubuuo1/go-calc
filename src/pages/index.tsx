@@ -1,10 +1,9 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   createTransaction,
-  deleteTransaction,
   getCategories,
   getTransactions,
   updateTransaction
@@ -17,9 +16,21 @@ import type {
   TransactionType
 } from "@/types/transaction";
 import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
-import { getStoredMonth, markAppEntered, setStoredMonth } from "@/utils/session";
-
-const PAGE_SIZE = 5;
+import {
+  clearStoredEditTransactionId,
+  getStoredEditTransactionId,
+  getStoredInputter,
+  getStoredMonth,
+  markAppEntered,
+  setStoredInputter,
+  setStoredMonth
+} from "@/utils/session";
+import {
+  DEFAULT_CATEGORIES,
+  inferCategory,
+  inputterLabel,
+  paymentLabel
+} from "@/utils/ledger";
 
 const currency = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -43,44 +54,16 @@ const emptyForm: TransactionInput = {
 const parseAmount = (value: string) => Number(value.replace(/[^\d]/g, ""));
 const formatAmount = (value: number) => (value ? numberFormat.format(value) : "");
 
-const paymentLabel: Record<PaymentMethod, string> = {
-  cash: "현금",
-  card: "카드"
-};
-
-const inputterLabel: Record<Inputter, string> = {
-  husband: "남편",
-  wife: "아내"
-};
-
-const DEFAULT_CATEGORIES = [
-  "식비",
-  "교통",
-  "쇼핑",
-  "주거",
-  "통신",
-  "의료",
-  "교육",
-  "문화",
-  "급여",
-  "기타"
-];
-
 export default function Home() {
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement | null>(null);
-  const titleInputRef = useRef<HTMLInputElement | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [form, setForm] = useState<TransactionInput>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [listQuery, setListQuery] = useState("");
-  const [listTypeFilter, setListTypeFilter] = useState<"all" | TransactionType>("all");
-  const [listCategoryFilter, setListCategoryFilter] = useState("all");
+  const [selectedInputter, setSelectedInputter] = useState<Inputter | null>(null);
   const [visibleMonth, setVisibleMonth] = useState(currentMonthKey());
   const [pickerMonth, setPickerMonth] = useState(currentMonthKey());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
-  const [page, setPage] = useState(1);
 
   const load = async () => {
     try {
@@ -90,6 +73,23 @@ export default function Home() {
       ]);
       setTransactions(nextTransactions);
       setCategories(nextCategories.length > 0 ? nextCategories : DEFAULT_CATEGORIES);
+
+      const editId = getStoredEditTransactionId();
+      const editTransaction = nextTransactions.find((transaction) => transaction.id === editId);
+      if (editTransaction) {
+        setEditingId(editTransaction.id);
+        setForm({
+          type: editTransaction.type,
+          paymentMethod: editTransaction.paymentMethod || "card",
+          inputter: editTransaction.inputter || "husband",
+          category: editTransaction.category,
+          amount: editTransaction.amount,
+          memo: editTransaction.memo,
+          date: editTransaction.date
+        });
+        setPickerMonth(editTransaction.date.slice(0, 7));
+        setVisibleMonth(editTransaction.date.slice(0, 7));
+      }
     } catch {
       setTransactions([]);
       setCategories(DEFAULT_CATEGORIES);
@@ -108,40 +108,20 @@ export default function Home() {
     markAppEntered();
     const queryMonth = router.query.month;
     const nextMonth = isMonthKey(queryMonth) ? queryMonth : getStoredMonth();
+    const storedInputter = getStoredInputter();
     setVisibleMonth(nextMonth);
     setPickerMonth(nextMonth);
     setStoredMonth(nextMonth);
+    setSelectedInputter(storedInputter);
+
+    if (storedInputter) {
+      setForm((current) => ({ ...current, inputter: storedInputter }));
+    }
 
     if (isMonthKey(queryMonth)) {
       router.replace(router.pathname, undefined, { shallow: true });
     }
   }, [router.isReady, router.query.month]);
-
-  const listFilteredTransactions = useMemo(() => {
-    return transactions.filter((transaction) => {
-      const matchesQuery = `${transaction.memo} ${transaction.category} ${
-        paymentLabel[transaction.paymentMethod] || ""
-      } ${inputterLabel[transaction.inputter || "husband"] || ""}`
-        .toLowerCase()
-        .includes(listQuery.toLowerCase());
-      const matchesType = listTypeFilter === "all" || transaction.type === listTypeFilter;
-      const matchesCategory =
-        listCategoryFilter === "all" || transaction.category === listCategoryFilter;
-
-      return matchesQuery && matchesType && matchesCategory;
-    });
-  }, [listCategoryFilter, listQuery, listTypeFilter, transactions]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [listCategoryFilter, listQuery, listTypeFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(listFilteredTransactions.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pagedTransactions = listFilteredTransactions.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
 
   const monthlyStats = useMemo(() => {
     const monthTransactions = transactions.filter((transaction) =>
@@ -157,26 +137,16 @@ export default function Home() {
     return { income, expense, balance: income - expense };
   }, [transactions, visibleMonth]);
 
-  const calendarDays = useMemo(
-    () => buildMonthDays(visibleMonth).map((day) => buildDaySummary(day, transactions)),
-    [transactions, visibleMonth]
-  );
-
-  const changeMonth = (delta: number) => {
-    const nextMonth = shiftMonth(visibleMonth, delta);
-    setVisibleMonth(nextMonth);
-    setStoredMonth(nextMonth);
-  };
-
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const payload = {
       ...form,
+      inputter: editingId ? form.inputter : selectedInputter || form.inputter,
       amount: Number(form.amount)
     };
 
-    if (!payload.amount || payload.amount < 0) {
+    if (!selectedInputter || !payload.amount || payload.amount < 0) {
       return;
     }
 
@@ -184,52 +154,33 @@ export default function Home() {
       if (editingId) {
         await updateTransaction(editingId, payload);
         setEditingId(null);
+        clearStoredEditTransactionId();
       } else {
         await createTransaction(payload);
       }
       setForm({
         ...emptyForm,
-        date: today(),
+        inputter: selectedInputter,
+        date: form.date,
         category: categories[0] || "기타"
       });
-      setPickerMonth(currentMonthKey());
+      setPickerMonth(form.date.slice(0, 7));
       setIsPickerOpen(false);
       await load();
     } catch {}
   };
 
-  const edit = (transaction: Transaction) => {
-    setEditingId(transaction.id);
-    setForm({
-      type: transaction.type,
-      paymentMethod: transaction.paymentMethod || "card",
-      inputter: transaction.inputter || "husband",
-      category: transaction.category,
-      amount: transaction.amount,
-      memo: transaction.memo,
-      date: transaction.date
-    });
-    setPickerMonth(transaction.date.slice(0, 7));
-    setIsPickerOpen(false);
-
-    window.setTimeout(() => {
-      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      titleInputRef.current?.focus({ preventScroll: true });
-    }, 0);
-  };
-
-  const remove = async (id: string) => {
-    try {
-      await deleteTransaction(id);
-      await load();
-    } catch {}
+  const chooseInputter = (inputter: Inputter) => {
+    setSelectedInputter(inputter);
+    setStoredInputter(inputter);
+    setForm((current) => ({ ...current, inputter }));
   };
 
   return (
     <>
       <Head>
         <title>고태윤 가계부</title>
-        <meta name="description" content="JSON 파일 기반 로컬 가계부" />
+        <meta name="description" content="Supabase 기반 가계부 입력 화면" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
@@ -268,9 +219,21 @@ export default function Home() {
             <SummaryCard label={`${visibleMonth} 잔액`} tone="primary" value={monthlyStats.balance} />
           </section>
 
-          <section className="order-2 grid gap-4 sm:order-3 xl:grid-cols-[340px_1fr]">
-            <form ref={formRef} onSubmit={submit} className="scroll-mt-4 panel p-3">
-              <h2 className="text-base font-black">{editingId ? "가계부 수정" : "가계부"}</h2>
+          <section className="order-2 sm:order-3">
+            <form onSubmit={submit} className="panel mx-auto max-w-xl p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-black">{editingId ? "가계부 수정" : "가계부"}</h2>
+                  <p className="mt-0.5 text-xs font-bold text-slate-500">
+                    {selectedInputter ? `${inputterLabel[selectedInputter]} 입력 중` : "입력자를 선택해 주세요"}
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <IconNav href="/ledger" label="달력/리스트" type="ledger" />
+                  <IconNav href="/totals" label="전체통계" type="totals" />
+                  <IconNav href="/stats" label="그래프" type="stats" />
+                </div>
+              </div>
 
               <div className="mt-3 grid gap-3">
                 <SegmentedTransactionType
@@ -283,20 +246,21 @@ export default function Home() {
                     setForm((current) => ({ ...current, paymentMethod }))
                   }
                 />
-                <SegmentedInputter
-                  value={form.inputter}
-                  onChange={(inputter) => setForm((current) => ({ ...current, inputter }))}
-                />
 
                 <label className="grid gap-1 text-xs font-bold">
                   제목
                   <input
-                    ref={titleInputRef}
                     className="input"
                     value={form.memo}
-                    onChange={(event) =>
-                      setForm((value) => ({ ...value, memo: event.target.value }))
-                    }
+                    onChange={(event) => {
+                      const memo = event.target.value;
+                      const category = inferCategory(memo, categories);
+                      setForm((value) => ({
+                        ...value,
+                        memo,
+                        category: category || value.category
+                      }));
+                    }}
                     placeholder="점심 식사"
                   />
                 </label>
@@ -328,6 +292,8 @@ export default function Home() {
                         onChange={(event) => {
                           setForm((value) => ({ ...value, date: event.target.value }));
                           setPickerMonth(event.target.value.slice(0, 7));
+                          setVisibleMonth(event.target.value.slice(0, 7));
+                          setStoredMonth(event.target.value.slice(0, 7));
                         }}
                       />
                       <button
@@ -366,6 +332,8 @@ export default function Home() {
                             onSelect={(date) => {
                               setForm((value) => ({ ...value, date }));
                               setPickerMonth(date.slice(0, 7));
+                              setVisibleMonth(date.slice(0, 7));
+                              setStoredMonth(date.slice(0, 7));
                               setIsPickerOpen(false);
                             }}
                           />
@@ -401,12 +369,14 @@ export default function Home() {
                     type="button"
                     onClick={() => {
                       setEditingId(null);
+                      clearStoredEditTransactionId();
                       setForm({
                         ...emptyForm,
-                        date: today(),
+                        inputter: selectedInputter || "husband",
+                        date: form.date,
                         category: categories[0] || "기타"
                       });
-                      setPickerMonth(currentMonthKey());
+                      setPickerMonth(form.date.slice(0, 7));
                       setIsPickerOpen(false);
                     }}
                   >
@@ -415,210 +385,80 @@ export default function Home() {
                 </div>
               </div>
             </form>
-
-            <div className="grid gap-4">
-              <section className="panel p-3">
-                <div className="flex flex-col items-center gap-2 text-center md:flex-row md:justify-between md:text-left">
-                  <h2 className="text-base font-black">월간 캘린더</h2>
-                  <div className="flex items-center gap-2">
-                    <button className="btn-small" type="button" onClick={() => changeMonth(-1)}>
-                      이전
-                    </button>
-                    <strong className="min-w-24 text-center text-base">{visibleMonth}</strong>
-                    <button className="btn-small" type="button" onClick={() => changeMonth(1)}>
-                      다음
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-7 overflow-hidden rounded-md border border-slate-200 bg-white">
-                  {["일", "월", "화", "수", "목", "금", "토"].map((day) => (
-                    <div
-                      key={day}
-                      className="border-b border-slate-200 bg-slate-50 px-1 py-1.5 text-center text-[11px] font-black text-slate-600"
-                    >
-                      {day}
-                    </div>
-                  ))}
-                  {calendarDays.map((day, index) => (
-                    <div
-                      key={day?.date || `empty-${index}`}
-                      className="min-h-16 border-b border-r border-slate-100 p-1.5 last:border-r-0"
-                    >
-                      {day ? (
-                        <>
-                          <p className="text-xs font-black text-slate-950">{day.dayNumber}</p>
-                          <div className="mt-1 grid gap-0.5 text-[10px] font-bold leading-tight">
-                            <span className="text-slate-600">
-                              <span className="money inline-block">
-                                + {day.income ? compactWon(day.income) : "0"}
-                              </span>
-                            </span>
-                            <span className="text-red-600">
-                              <span className="money inline-block">
-                                - {day.expense ? compactWon(day.expense) : "0"}
-                              </span>
-                            </span>
-                          </div>
-                        </>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="panel p-3">
-                <div className="grid gap-2 md:grid-cols-[1fr_120px_140px]">
-                  <input
-                    className="input"
-                    value={listQuery}
-                    onChange={(event) => setListQuery(event.target.value)}
-                    placeholder="제목, 카테고리, 결제수단 검색"
-                  />
-                  <select
-                    className="input"
-                    value={listTypeFilter}
-                    onChange={(event) =>
-                      setListTypeFilter(event.target.value as "all" | TransactionType)
-                    }
-                  >
-                    <option value="all">전체 유형</option>
-                    <option value="income">수입</option>
-                    <option value="expense">지출</option>
-                  </select>
-                  <select
-                    className="input"
-                    value={listCategoryFilter}
-                    onChange={(event) => setListCategoryFilter(event.target.value)}
-                  >
-                    <option value="all">전체 카테고리</option>
-                    {categories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="mt-3 overflow-hidden rounded-md border border-slate-200">
-                  {pagedTransactions.length === 0 ? (
-                    <p className="p-5 text-center text-sm text-slate-500">
-                      표시할 거래가 없습니다.
-                    </p>
-                  ) : (
-                    pagedTransactions.map((transaction) => (
-                      <article
-                        key={transaction.id}
-                        className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1.5 border-b border-slate-100 bg-white px-3 py-2 last:border-0 md:grid-cols-[70px_1fr_130px_105px] md:gap-2 md:py-2.5"
-                      >
-                        <div className="hidden md:block">
-                          <span
-                            className={`rounded px-2 py-1 text-[11px] font-black ${
-                              transaction.type === "income"
-                                ? "bg-slate-100 text-slate-700"
-                                : "bg-red-50 text-red-700"
-                            }`}
-                          >
-                            {transaction.type === "income" ? "수입" : "지출"}
-                          </span>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-slate-950">
-                            <span
-                              className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-black md:hidden ${
-                                transaction.type === "income"
-                                  ? "bg-slate-100 text-slate-700"
-                                  : "bg-red-50 text-red-700"
-                              }`}
-                            >
-                              {transaction.type === "income" ? "수입" : "지출"}
-                            </span>
-                            <span className="truncate">{transaction.memo || "제목 없음"}</span>
-                          </p>
-                          <p className="mt-0.5 truncate text-[11px] text-slate-500 sm:text-xs">
-                            {transaction.category} ·{" "}
-                            {paymentLabel[transaction.paymentMethod || "card"]} ·{" "}
-                            {inputterLabel[transaction.inputter || "husband"]} ·{" "}
-                            {transaction.date}
-                          </p>
-                        </div>
-                        <p
-                          className={`money self-start text-right text-sm font-black ${
-                            transaction.type === "income"
-                              ? "text-slate-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {currency.format(transaction.amount)}
-                        </p>
-                        <div className="col-span-2 flex justify-end gap-1.5 md:col-auto md:justify-end">
-                          <button
-                            className="btn-small"
-                            type="button"
-                            onClick={() => edit(transaction)}
-                          >
-                            수정
-                          </button>
-                          <button
-                            className="btn-small-danger"
-                            type="button"
-                            onClick={() => remove(transaction.id)}
-                          >
-                            삭제
-                          </button>
-                        </div>
-                      </article>
-                    ))
-                  )}
-                </div>
-
-                <div className="mt-3 flex flex-col items-center gap-2 text-center text-xs text-slate-500">
-                  <span>
-                    총 {listFilteredTransactions.length}건 · {currentPage}/{totalPages} 페이지
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      className="btn-small"
-                      disabled={currentPage === 1}
-                      type="button"
-                      onClick={() => setPage((value) => Math.max(1, value - 1))}
-                    >
-                      이전
-                    </button>
-                    <button
-                      className="btn-small"
-                      disabled={currentPage === totalPages}
-                      type="button"
-                      onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-                    >
-                      다음
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-            </div>
           </section>
-
-          <nav className="order-4 grid grid-cols-2 gap-2 sm:hidden">
-            <Link
-              className="btn-secondary inline-flex h-10 items-center justify-center"
-              href="/totals"
-              replace
-            >
-              전체 통계 보기
-            </Link>
-            <Link
-              className="btn-secondary inline-flex h-10 items-center justify-center"
-              href="/stats"
-              replace
-            >
-              일별 그래프 보기
-            </Link>
-          </nav>
         </div>
+        {!selectedInputter ? <InputterGate onSelect={chooseInputter} /> : null}
       </main>
     </>
+  );
+}
+
+function IconNav({
+  href,
+  label,
+  type
+}: {
+  href: string;
+  label: string;
+  type: "ledger" | "totals" | "stats";
+}) {
+  return (
+    <Link
+      aria-label={label}
+      className="grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-400 hover:text-slate-950"
+      href={href}
+      replace
+      title={label}
+    >
+      {type === "ledger" ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M8 2v4" />
+          <path d="M16 2v4" />
+          <rect height="18" rx="3" width="18" x="3" y="4" />
+          <path d="M3 10h18" />
+          <path d="M7 14h4" />
+          <path d="M7 18h7" />
+        </svg>
+      ) : null}
+      {type === "totals" ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M4 19V5" />
+          <path d="M4 19h16" />
+          <path d="M8 16v-5" />
+          <path d="M12 16V8" />
+          <path d="M16 16v-3" />
+        </svg>
+      ) : null}
+      {type === "stats" ? (
+        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M4 19h16" />
+          <path d="M4 15l4-4 4 3 5-7 3 4" />
+        </svg>
+      ) : null}
+    </Link>
+  );
+}
+
+function InputterGate({ onSelect }: { onSelect: (inputter: Inputter) => void }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4 backdrop-blur-sm">
+      <section className="panel w-full max-w-sm p-5 text-center">
+        <p className="text-sm font-bold text-slate-500">처음 사용할 입력자를 선택해 주세요</p>
+        <h2 className="mt-1 text-2xl font-black text-slate-950">누가 입력하나요?</h2>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          {(["husband", "wife"] as Inputter[]).map((inputter) => (
+            <button
+              key={inputter}
+              className="btn-primary h-12"
+              type="button"
+              onClick={() => onSelect(inputter)}
+            >
+              {inputterLabel[inputter]}
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -670,33 +510,6 @@ function SegmentedPaymentMethod({
           }`}
         >
           {paymentLabel[method]}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function SegmentedInputter({
-  value,
-  onChange
-}: {
-  value: Inputter;
-  onChange: (inputter: Inputter) => void;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-1.5 rounded-md bg-slate-50 p-1">
-      {(["husband", "wife"] as Inputter[]).map((inputter) => (
-        <button
-          key={inputter}
-          type="button"
-          onClick={() => onChange(inputter)}
-          className={`rounded px-3 py-1.5 text-xs font-black ${
-            value === inputter
-              ? "border border-slate-500 bg-slate-500 text-white shadow-sm"
-              : "border border-slate-200 bg-white text-slate-600"
-          }`}
-        >
-          {inputterLabel[inputter]}
         </button>
       ))}
     </div>
@@ -798,35 +611,6 @@ function buildMonthDays(monthKey: string) {
       dayNumber
     };
   });
-}
-
-function buildDaySummary(
-  day: ReturnType<typeof buildMonthDays>[number],
-  transactions: Transaction[]
-) {
-  if (!day) {
-    return null;
-  }
-
-  const dayTransactions = transactions.filter((transaction) => transaction.date === day.date);
-  const income = dayTransactions
-    .filter((transaction) => transaction.type === "income")
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
-  const expense = dayTransactions
-    .filter((transaction) => transaction.type === "expense")
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
-
-  return { ...day, income, expense };
-}
-
-function compactWon(value: number) {
-  if (value >= 10000) {
-    const manWon = value / 10000;
-    const displayValue = Number.isInteger(manWon) ? manWon.toFixed(0) : manWon.toFixed(1);
-    return `${displayValue}만`;
-  }
-
-  return numberFormat.format(value);
 }
 
 function shiftMonth(monthKey: string, delta: number) {

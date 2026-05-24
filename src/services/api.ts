@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Transaction, TransactionInput } from "@/types/transaction";
+import { DEFAULT_CATEGORIES } from "@/utils/ledger";
 
 type TransactionRow = {
   id: string;
@@ -12,19 +13,6 @@ type TransactionRow = {
   memo: string;
   date: string;
 };
-
-const DEFAULT_CATEGORIES = [
-  "식비",
-  "교통",
-  "쇼핑",
-  "주거",
-  "통신",
-  "의료",
-  "교육",
-  "문화",
-  "급여",
-  "기타"
-];
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
