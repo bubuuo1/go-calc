@@ -208,12 +208,9 @@ export default function Home() {
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">
           <header className="order-1 flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+              <p className="text-lg font-black tracking-normal text-slate-900">
                 고태윤 가계부
               </p>
-              <h1 className="mt-1 text-3xl font-black tracking-normal text-slate-950">
-                수입 지출 관리
-              </h1>
             </div>
             <div className="hidden flex-col gap-2 sm:flex sm:flex-row sm:items-end">
               <Link
@@ -446,13 +443,13 @@ function IconNav({
   return (
     <Link
       aria-label={label}
-      className="grid h-10 w-10 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-400 hover:text-slate-950"
+      className="flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-400 hover:text-slate-950"
       href={href}
       replace
       title={label}
     >
       {type === "ledger" ? (
-        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+        <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
           <path d="M8 2v4" />
           <path d="M16 2v4" />
           <rect height="18" rx="3" width="18" x="3" y="4" />
@@ -462,7 +459,7 @@ function IconNav({
         </svg>
       ) : null}
       {type === "totals" ? (
-        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+        <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
           <path d="M4 19V5" />
           <path d="M4 19h16" />
           <path d="M8 16v-5" />
@@ -471,7 +468,7 @@ function IconNav({
         </svg>
       ) : null}
       {type === "transactions" ? (
-        <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+        <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
           <path d="M8 6h13" />
           <path d="M8 12h13" />
           <path d="M8 18h13" />
@@ -480,6 +477,7 @@ function IconNav({
           <path d="M3 18h.01" />
         </svg>
       ) : null}
+      <span className="whitespace-nowrap text-[8px] font-black leading-none">{label}</span>
     </Link>
   );
 }

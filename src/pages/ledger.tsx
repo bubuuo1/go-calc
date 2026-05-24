@@ -103,17 +103,25 @@ export default function LedgerPage() {
       <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">
           <header className="border-b border-slate-200 pb-3">
-            <div className="flex items-end justify-between gap-3">
+            <div className="flex items-center justify-between gap-3">
               <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+              <p className="text-lg font-black tracking-normal text-slate-900">
                 고태윤 가계부
               </p>
-              <h1 className="mt-1 text-3xl font-black tracking-normal text-slate-950">
-                달력
-              </h1>
               </div>
-              <Link className="btn-secondary inline-flex h-10 shrink-0 items-center justify-center" href="/" replace>
-                가계부
+              <Link
+                aria-label="가계부"
+                className="flex h-12 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-400 hover:text-slate-950"
+                href="/"
+                replace
+                title="가계부"
+              >
+                <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M3 11l9-8 9 8" />
+                  <path d="M5 10v10h14V10" />
+                  <path d="M9 20v-6h6v6" />
+                </svg>
+                <span className="whitespace-nowrap text-[8px] font-black leading-none">가계부</span>
               </Link>
             </div>
           </header>
@@ -154,11 +162,8 @@ export default function LedgerPage() {
                         <>
                           <p className="text-xs font-black text-slate-950">{day.dayNumber}</p>
                           <div className="mt-0.5 min-w-0 leading-none sm:mt-1">
-                            <p className="text-[9px] font-bold text-slate-400 sm:text-[10px]">
-                              합계
-                            </p>
                             <p
-                              className={`money block max-w-full truncate text-[10px] font-black leading-tight sm:text-[11px] ${
+                              className={`money mt-1 block max-w-full truncate text-[10px] font-black leading-tight sm:text-[11px] ${
                                 total < 0 ? "text-red-600" : "text-slate-600"
                               }`}
                             >
