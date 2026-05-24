@@ -10,6 +10,7 @@ import {
   updateTransaction
 } from "@/services/api";
 import type {
+  Inputter,
   PaymentMethod,
   Transaction,
   TransactionInput,
@@ -32,6 +33,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const emptyForm: TransactionInput = {
   type: "expense",
   paymentMethod: "card",
+  inputter: "husband",
   category: "식비",
   amount: 0,
   memo: "",
@@ -44,6 +46,11 @@ const formatAmount = (value: number) => (value ? numberFormat.format(value) : ""
 const paymentLabel: Record<PaymentMethod, string> = {
   cash: "현금",
   card: "카드"
+};
+
+const inputterLabel: Record<Inputter, string> = {
+  husband: "남편",
+  wife: "아내"
 };
 
 const DEFAULT_CATEGORIES = [
@@ -112,7 +119,7 @@ export default function Home() {
     return transactions.filter((transaction) => {
       const matchesQuery = `${transaction.memo} ${transaction.category} ${
         paymentLabel[transaction.paymentMethod] || ""
-      }`
+      } ${inputterLabel[transaction.inputter || "husband"] || ""}`
         .toLowerCase()
         .includes(query.toLowerCase());
       const matchesType = typeFilter === "all" || transaction.type === typeFilter;
@@ -194,6 +201,7 @@ export default function Home() {
     setForm({
       type: transaction.type,
       paymentMethod: transaction.paymentMethod || "card",
+      inputter: transaction.inputter || "husband",
       category: transaction.category,
       amount: transaction.amount,
       memo: transaction.memo,
@@ -267,6 +275,10 @@ export default function Home() {
                   onChange={(paymentMethod) =>
                     setForm((current) => ({ ...current, paymentMethod }))
                   }
+                />
+                <SegmentedInputter
+                  value={form.inputter}
+                  onChange={(inputter) => setForm((current) => ({ ...current, inputter }))}
                 />
 
                 <label className="grid gap-1 text-xs font-bold">
@@ -398,7 +410,7 @@ export default function Home() {
 
             <div className="grid gap-4">
               <section className="panel p-3">
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col items-center gap-2 text-center md:flex-row md:justify-between md:text-left">
                   <h2 className="text-base font-black">월간 캘린더</h2>
                   <div className="flex items-center gap-2">
                     <button className="btn-small" type="button" onClick={() => changeMonth(-1)}>
@@ -489,9 +501,9 @@ export default function Home() {
                     pagedTransactions.map((transaction) => (
                       <article
                         key={transaction.id}
-                        className="grid gap-2 border-b border-slate-100 bg-white px-3 py-2.5 last:border-0 md:grid-cols-[70px_1fr_130px_105px]"
+                        className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1.5 border-b border-slate-100 bg-white px-3 py-2 last:border-0 md:grid-cols-[70px_1fr_130px_105px] md:gap-2 md:py-2.5"
                       >
-                        <div>
+                        <div className="hidden md:block">
                           <span
                             className={`rounded px-2 py-1 text-[11px] font-black ${
                               transaction.type === "income"
@@ -502,18 +514,28 @@ export default function Home() {
                             {transaction.type === "income" ? "수입" : "지출"}
                           </span>
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-slate-950">
-                            {transaction.memo || "제목 없음"}
+                        <div className="min-w-0">
+                          <p className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-slate-950">
+                            <span
+                              className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-black md:hidden ${
+                                transaction.type === "income"
+                                  ? "bg-slate-100 text-slate-700"
+                                  : "bg-red-50 text-red-700"
+                              }`}
+                            >
+                              {transaction.type === "income" ? "수입" : "지출"}
+                            </span>
+                            <span className="truncate">{transaction.memo || "제목 없음"}</span>
                           </p>
-                          <p className="mt-0.5 text-xs text-slate-500">
+                          <p className="mt-0.5 truncate text-[11px] text-slate-500 sm:text-xs">
                             {transaction.category} ·{" "}
                             {paymentLabel[transaction.paymentMethod || "card"]} ·{" "}
+                            {inputterLabel[transaction.inputter || "husband"]} ·{" "}
                             {transaction.date}
                           </p>
                         </div>
                         <p
-                          className={`money text-sm font-black ${
+                          className={`money self-start text-right text-sm font-black ${
                             transaction.type === "income"
                               ? "text-slate-600"
                               : "text-red-600"
@@ -521,7 +543,7 @@ export default function Home() {
                         >
                           {currency.format(transaction.amount)}
                         </p>
-                        <div className="flex gap-1.5 md:justify-end">
+                        <div className="col-span-2 flex justify-end gap-1.5 md:col-auto md:justify-end">
                           <button
                             className="btn-small"
                             type="button"
@@ -640,6 +662,33 @@ function SegmentedPaymentMethod({
           }`}
         >
           {paymentLabel[method]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SegmentedInputter({
+  value,
+  onChange
+}: {
+  value: Inputter;
+  onChange: (inputter: Inputter) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-1.5 rounded-md bg-slate-50 p-1">
+      {(["husband", "wife"] as Inputter[]).map((inputter) => (
+        <button
+          key={inputter}
+          type="button"
+          onClick={() => onChange(inputter)}
+          className={`rounded px-3 py-1.5 text-xs font-black ${
+            value === inputter
+              ? "border border-slate-500 bg-slate-500 text-white shadow-sm"
+              : "border border-slate-200 bg-white text-slate-600"
+          }`}
+        >
+          {inputterLabel[inputter]}
         </button>
       ))}
     </div>

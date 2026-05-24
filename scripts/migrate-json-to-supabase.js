@@ -23,6 +23,7 @@ const toRow = (transaction) => ({
   id: transaction.id,
   type: transaction.type,
   payment_method: transaction.paymentMethod,
+  inputter: transaction.inputter || "husband",
   category: transaction.category,
   amount: Number(transaction.amount),
   memo: transaction.memo || "",

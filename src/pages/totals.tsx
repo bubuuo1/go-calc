@@ -121,7 +121,7 @@ export default function TotalsPage() {
             </nav>
           </header>
 
-          <section className="panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <section className="panel flex flex-col items-center gap-3 p-4 text-center sm:flex-row sm:justify-between sm:text-left">
             <h2 className="text-lg font-black">연도 선택</h2>
             <div className="flex items-center gap-2">
               <button className="btn-small" type="button" onClick={() => shiftYear(-1)}>
