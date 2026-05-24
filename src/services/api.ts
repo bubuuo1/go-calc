@@ -6,6 +6,7 @@ type TransactionRow = {
   id: string;
   type: Transaction["type"];
   payment_method: Transaction["paymentMethod"];
+  inputter?: Transaction["inputter"] | null;
   category: string;
   amount: number;
   memo: string;
@@ -45,6 +46,7 @@ const toTransaction = (row: TransactionRow): Transaction => ({
   id: row.id,
   type: row.type,
   paymentMethod: row.payment_method,
+  inputter: row.inputter || "husband",
   category: row.category,
   amount: Number(row.amount),
   memo: row.memo || "",
@@ -55,6 +57,7 @@ const toRow = (transaction: TransactionInput, id: string): TransactionRow => ({
   id,
   type: transaction.type,
   payment_method: transaction.paymentMethod,
+  inputter: transaction.inputter,
   category: transaction.category,
   amount: Number(transaction.amount),
   memo: transaction.memo || "",
@@ -75,7 +78,7 @@ export const getTransactions = async () => {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("transactions")
-    .select("id,type,payment_method,category,amount,memo,date")
+    .select("id,type,payment_method,inputter,category,amount,memo,date")
     .order("date", { ascending: false })
     .order("id", { ascending: false });
 
@@ -93,7 +96,7 @@ export const createTransaction = async (transaction: TransactionInput) => {
   const { data, error } = await supabase
     .from("transactions")
     .insert(toRow(transaction, id))
-    .select("id,type,payment_method,category,amount,memo,date")
+    .select("id,type,payment_method,inputter,category,amount,memo,date")
     .single();
 
   if (error) {
@@ -113,7 +116,7 @@ export const updateTransaction = async (id: string, transaction: TransactionInpu
     .from("transactions")
     .update(toRow(transaction, id))
     .eq("id", id)
-    .select("id,type,payment_method,category,amount,memo,date")
+    .select("id,type,payment_method,inputter,category,amount,memo,date")
     .single();
 
   if (error) {
