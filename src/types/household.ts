@@ -19,3 +19,19 @@ export type HouseholdMembership = {
 export type SignUpResult = {
   requiresEmailConfirmation: boolean;
 };
+
+export type PendingHouseholdInvite = {
+  id: string;
+  inviteeEmail: string;
+  inputter: Inputter;
+  expiresAt: string;
+  createdAt: string;
+};
+
+export type HouseholdEmailInvite = {
+  householdName: string;
+  inviterDisplayName: string;
+  inviteeEmail: string;
+  inputter: Inputter;
+  expiresAt: string;
+};

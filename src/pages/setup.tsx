@@ -16,19 +16,19 @@ const SETUP_OPTIONS: Array<{
   {
     mode: "claim",
     title: "기존 가계부 이어받기",
-    description: "기존 솔샘네 거래를 일회용 코드로 안전하게 연결합니다.",
+    description: "기존 거래를 일회용 코드로 연결합니다.",
     icon: "↗"
   },
   {
     mode: "create",
     title: "새 가계부 만들기",
-    description: "비어 있는 우리만의 공유 가계부를 새로 시작합니다.",
+    description: "새 공유 가계부를 시작합니다.",
     icon: "+"
   },
   {
     mode: "join",
-    title: "배우자 가계부 참여",
-    description: "배우자가 만든 초대 코드를 입력해 같은 공간에 참여합니다.",
+    title: "초대 코드로 참여",
+    description: "기존 초대 코드가 있을 때 사용합니다.",
     icon: "♡"
   }
 ];
@@ -175,10 +175,10 @@ export default function SetupPage() {
             <p className="text-xs font-black tracking-[0.18em] text-blue-100">첫 설정</p>
             <h1 className="mt-2 text-2xl font-black">어떤 가계부에 연결할까요?</h1>
             <p className="mt-2 text-sm font-bold leading-6 text-blue-100">
-              계정은 계속 유지되며, 연결한 가구의 거래만 두 사람이 함께 볼 수 있어요.
+              사용할 가계부를 선택해 주세요.
             </p>
             <p className="mt-4 truncate rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-blue-50">
-              로그인 계정 · {user?.email || "이메일 계정"}
+              {user?.email || "이메일 계정"}
             </p>
           </header>
 
@@ -224,7 +224,7 @@ export default function SetupPage() {
 
           <section className="panel mt-4 p-4 sm:p-6">
             <div>
-              <p className="text-xs font-black text-blue-600">선택한 방식</p>
+              <p className="text-xs font-black text-blue-600">선택</p>
               <h2 className="mt-1 text-xl font-black">
                 {SETUP_OPTIONS.find((option) => option.mode === mode)?.title}
               </h2>
@@ -258,7 +258,7 @@ export default function SetupPage() {
                     autoCapitalize="none"
                     autoComplete="off"
                     className="input font-mono tracking-wider"
-                    placeholder="전달받은 코드를 입력하세요"
+                    placeholder="일회용 코드"
                     required
                     value={claimCode}
                     onChange={(event) => setClaimCode(event.target.value)}
@@ -288,13 +288,13 @@ export default function SetupPage() {
                   className="grid gap-1.5 text-xs font-black text-slate-700"
                   htmlFor="setup-invite-code"
                 >
-                  배우자 초대 코드
+                  초대 코드
                   <input
                     id="setup-invite-code"
                     autoCapitalize="none"
                     autoComplete="off"
                     className="input font-mono tracking-wider"
-                    placeholder="배우자에게 받은 코드를 입력하세요"
+                    placeholder="초대 코드"
                     required
                     value={inviteCode}
                     onChange={(event) => setInviteCode(event.target.value)}
@@ -341,7 +341,7 @@ export default function SetupPage() {
                 disabled={isSubmitting}
                 type="submit"
               >
-                {isSubmitting ? "연결 중..." : "가계부 연결하고 시작하기"}
+                {isSubmitting ? "연결 중..." : "연결하고 시작"}
               </button>
             </form>
           </section>

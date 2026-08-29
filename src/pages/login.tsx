@@ -2,6 +2,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { safeAuthNextPath } from "@/utils/auth";
 
 type AuthMode = "signIn" | "signUp";
 
@@ -25,13 +26,26 @@ const authErrorMessage = (error: unknown) => {
   if (code.includes("rate_limit") || message.includes("rate limit")) {
     return "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.";
   }
+  if (
+    message.includes("provider is not enabled") ||
+    message.includes("unsupported provider")
+  ) {
+    return "Google 로그인이 아직 연결되지 않았습니다.";
+  }
 
-  return "로그인 처리 중 문제가 생겼습니다. 잠시 후 다시 시도해 주세요.";
+  return "로그인하지 못했습니다. 다시 시도해 주세요.";
 };
 
 export default function LoginPage() {
   const router = useRouter();
-  const { session, membership, loading, signIn, signUp } = useAuth();
+  const {
+    session,
+    membership,
+    loading,
+    signIn,
+    signInWithGoogle,
+    signUp
+  } = useAuth();
   const [mode, setMode] = useState<AuthMode>("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,12 +53,15 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const nextPath = safeAuthNextPath(
+    Array.isArray(router.query.next) ? router.query.next[0] : router.query.next
+  );
 
   useEffect(() => {
     if (!loading && session) {
-      void router.replace(membership ? "/" : "/setup");
+      void router.replace(nextPath || (membership ? "/" : "/setup"));
     }
-  }, [loading, membership, router, session]);
+  }, [loading, membership, nextPath, router, session]);
 
   const changeMode = (nextMode: AuthMode) => {
     setMode(nextMode);
@@ -71,7 +88,7 @@ export default function LoginPage() {
         return;
       }
 
-      const result = await signUp(email, password);
+      const result = await signUp(email, password, nextPath);
       if (result.requiresEmailConfirmation) {
         setInfoMessage(
           "가입 확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 이 화면에서 로그인해 주세요."
@@ -87,11 +104,23 @@ export default function LoginPage() {
     }
   };
 
+  const continueWithGoogle = async () => {
+    setErrorMessage(null);
+    setInfoMessage(null);
+    try {
+      setIsSubmitting(true);
+      await signInWithGoogle(nextPath);
+    } catch (error) {
+      setErrorMessage(authErrorMessage(error));
+      setIsSubmitting(false);
+    }
+  };
+
   if (loading || session) {
     return (
       <main className="grid min-h-screen place-items-center bg-slate-50">
         <p className="text-sm font-black text-blue-700" role="status">
-          로그인 정보를 확인하고 있어요...
+          로그인 확인 중...
         </p>
       </main>
     );
@@ -123,8 +152,7 @@ export default function LoginPage() {
               </div>
             </div>
             <p className="mt-5 text-sm font-bold leading-6 text-blue-100">
-              한 번 로그인하면 이 기기에서 세션이 안전하게 유지되어, 다음에도 바로
-              이어서 기록할 수 있어요.
+              함께 기록하는 우리 집 가계부
             </p>
           </header>
 
@@ -148,14 +176,30 @@ export default function LoginPage() {
               </ModeButton>
             </div>
 
+            <button
+              className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-black text-slate-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-wait disabled:opacity-70"
+              disabled={isSubmitting}
+              type="button"
+              onClick={() => void continueWithGoogle()}
+            >
+              <GoogleIcon />
+              {isSubmitting ? "연결 중..." : "Google로 계속하기"}
+            </button>
+
+            <div className="my-4 flex items-center gap-3 text-xs font-bold text-slate-400">
+              <span className="h-px flex-1 bg-slate-200" />
+              이메일
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
+
             <div className="mt-5">
               <h2 className="text-xl font-black">
-                {mode === "signIn" ? "다시 만나 반가워요" : "가계부를 함께 시작해요"}
+                {mode === "signIn" ? "로그인" : "회원가입"}
               </h2>
               <p className="mt-1 text-sm font-bold text-slate-500">
                 {mode === "signIn"
-                  ? "가입한 이메일로 로그인해 주세요."
-                  : "본인 계정을 만든 뒤 가구를 연결합니다."}
+                  ? "이메일과 비밀번호를 입력하세요."
+                  : "계정을 만든 뒤 가족 공간을 연결합니다."}
               </p>
             </div>
 
@@ -244,11 +288,34 @@ export default function LoginPage() {
           </section>
 
           <p className="mt-4 text-center text-xs font-bold leading-5 text-slate-400">
-            공용 기기에서는 사용 후 로그아웃해 주세요.
+            공용 기기에서는 로그아웃해 주세요.
           </p>
         </div>
       </main>
     </>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24">
+      <path
+        fill="#4285F4"
+        d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.41Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 22c2.7 0 4.97-.9 6.62-2.36l-3.24-2.54c-.9.6-2.05.96-3.38.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.62A10 10 0 0 0 12 22Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M6.39 13.93A6.02 6.02 0 0 1 6.08 12c0-.67.11-1.32.31-1.93V7.45H3.04A10 10 0 0 0 2 12c0 1.61.38 3.14 1.04 4.55l3.35-2.62Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.94c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.64 9.64 0 0 0 12 2a10 10 0 0 0-8.96 5.45l3.35 2.62C7.18 7.7 9.39 5.94 12 5.94Z"
+      />
+    </svg>
   );
 }
 

@@ -2,9 +2,11 @@ import { useRouter } from "next/router";
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { safeAuthNextPath } from "@/utils/auth";
 
 const PUBLIC_PATH = "/login";
 const SETUP_PATH = "/setup";
+const INVITE_PATH = "/invite";
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -18,28 +20,48 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   } = useAuth();
   const isLoginPage = router.pathname === PUBLIC_PATH;
   const isSetupPage = router.pathname === SETUP_PATH;
+  const isInvitePage = router.pathname === INVITE_PATH;
+  const inviteNextPath = isLoginPage
+    ? safeAuthNextPath(
+        Array.isArray(router.query.next)
+          ? router.query.next[0]
+          : router.query.next
+      )
+    : null;
 
   useEffect(() => {
     if (!router.isReady || loading || membershipError) {
       return;
     }
 
-    if (!session && !isLoginPage) {
+    if (!session && !isLoginPage && !isInvitePage) {
       void router.replace(PUBLIC_PATH);
       return;
     }
 
-    if (session && !membership && !isSetupPage) {
+    if (
+      session &&
+      !membership &&
+      !isSetupPage &&
+      !isInvitePage &&
+      !inviteNextPath
+    ) {
       void router.replace(SETUP_PATH);
       return;
     }
 
-    if (session && membership && (isLoginPage || isSetupPage)) {
+    if (
+      session &&
+      membership &&
+      ((isLoginPage && !inviteNextPath) || isSetupPage)
+    ) {
       void router.replace("/");
     }
   }, [
     isLoginPage,
+    isInvitePage,
     isSetupPage,
+    inviteNextPath,
     loading,
     membership,
     membershipError,
@@ -88,6 +110,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }
 
   const canRender =
+    isInvitePage ||
+    Boolean(isLoginPage && inviteNextPath) ||
     (!session && isLoginPage) ||
     (session && !membership && isSetupPage) ||
     (session && membership && !isLoginPage && !isSetupPage);

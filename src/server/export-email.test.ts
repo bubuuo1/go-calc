@@ -20,7 +20,8 @@ vi.mock("resend", () => ({
 import {
   ExportEmailConfigurationError,
   ExportEmailDeliveryError,
-  sendExportEmail
+  sendExportEmail,
+  sendHouseholdInviteEmail
 } from "./export-email";
 
 const environmentKeys = [
@@ -185,5 +186,42 @@ describe("sendExportEmail", () => {
     });
     expect(mocks.resendSend).toHaveBeenCalledOnce();
     expect(mocks.createTransport).not.toHaveBeenCalled();
+  });
+});
+
+describe("sendHouseholdInviteEmail", () => {
+  it("첨부 없이 승인 링크가 담긴 초대 메일을 보낸다", async () => {
+    process.env.GMAIL_SMTP_USER = "sender@gmail.com";
+    process.env.GMAIL_SMTP_APP_PASSWORD = "abcdefghijklmnop";
+    mocks.sendMail.mockResolvedValue({
+      accepted: ["family@example.com"],
+      rejected: [],
+      messageId: "<invite-message-id>"
+    });
+
+    await expect(
+      sendHouseholdInviteEmail({
+        householdId: "household-1",
+        inviteId: "invite-1",
+        householdName: "우리집 가계부",
+        inviterDisplayName: "솔샘",
+        recipientEmail: "family@example.com",
+        inviteUrl: "https://go-calc-blond.vercel.app/invite?token=GI-test"
+      })
+    ).resolves.toEqual({ id: "<invite-message-id>" });
+
+    expect(mocks.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: ["family@example.com"],
+        subject: "[솔샘네 가계부] 솔샘님의 가족 초대",
+        text: expect.stringContaining(
+          "https://go-calc-blond.vercel.app/invite?token=GI-test"
+        ),
+        html: expect.stringContaining("로그인하고 승인하기"),
+        disableFileAccess: true,
+        disableUrlAccess: true
+      })
+    );
+    expect(mocks.sendMail.mock.calls[0][0]).not.toHaveProperty("attachments");
   });
 });

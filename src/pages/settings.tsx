@@ -1,12 +1,20 @@
 import Head from "next/head";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import ExportSettingsSection from "@/components/ExportSettingsSection";
 import PwaSettingsSection from "@/components/PwaSettingsSection";
 import RecurringRulesSection from "@/components/RecurringRulesSection";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  cancelPendingHouseholdInvite,
+  listPendingHouseholdInvites,
+  sendHouseholdInviteEmail
+} from "@/services/household-invitations";
 import { getSupabaseClient } from "@/services/supabase";
-import type { HouseholdRole } from "@/types/household";
+import type {
+  HouseholdRole,
+  PendingHouseholdInvite
+} from "@/types/household";
 import type { Inputter } from "@/types/transaction";
 import { inputterLabel } from "@/utils/ledger";
 
@@ -23,10 +31,17 @@ const errorText = (error: unknown, fallback: string) =>
 export default function SettingsPage() {
   const { membership, user, signOut } = useAuth();
   const [members, setMembers] = useState<HouseholdMemberRow[]>([]);
-  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [pendingInvites, setPendingInvites] = useState<
+    PendingHouseholdInvite[]
+  >([]);
+  const [inviteEmail, setInviteEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
-  const [isCreatingInvite, setIsCreatingInvite] = useState(false);
+  const [isLoadingInvites, setIsLoadingInvites] = useState(true);
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [cancellingInviteId, setCancellingInviteId] = useState<string | null>(
+    null
+  );
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const loadMembers = useCallback(async () => {
@@ -49,53 +64,65 @@ export default function SettingsPage() {
     setIsLoadingMembers(false);
   }, [membership]);
 
+  const loadInvites = useCallback(async () => {
+    if (!membership || membership.role !== "owner") {
+      setPendingInvites([]);
+      setIsLoadingInvites(false);
+      return;
+    }
+
+    setIsLoadingInvites(true);
+    try {
+      setPendingInvites(await listPendingHouseholdInvites());
+    } catch {
+      setMessage("초대 정보를 불러오지 못했습니다.");
+    } finally {
+      setIsLoadingInvites(false);
+    }
+  }, [membership]);
+
   useEffect(() => {
     void loadMembers();
-  }, [loadMembers]);
+    void loadInvites();
+  }, [loadInvites, loadMembers]);
 
-  const partnerInputter = useMemo<Inputter>(
-    () => (membership?.inputter === "husband" ? "wife" : "husband"),
-    [membership?.inputter]
-  );
+  const partnerInputter: Inputter =
+    membership?.inputter === "husband" ? "wife" : "husband";
   const partnerJoined = members.some((member) => member.inputter === partnerInputter);
 
   if (!membership) {
     return null;
   }
 
-  const createInvite = async () => {
-    setIsCreatingInvite(true);
-    setInviteCode(null);
+  const createInvite = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSendingInvite(true);
     setMessage(null);
     try {
-      const { data, error } = await getSupabaseClient().rpc(
-        "create_household_invite",
-        { p_inputter: partnerInputter }
+      await sendHouseholdInviteEmail(inviteEmail.trim(), partnerInputter);
+      setInviteEmail("");
+      await loadInvites();
+      setMessage(
+        "초대 메일을 보냈습니다. 상대방이 로그인 후 승인하면 추가됩니다."
       );
-      if (error) {
-        throw error;
-      }
-      if (typeof data !== "string" || !data) {
-        throw new Error("초대 코드를 만들지 못했습니다.");
-      }
-      setInviteCode(data);
-      setMessage("7일 동안 사용할 수 있는 새 초대 코드를 만들었습니다.");
     } catch (error) {
-      setMessage(errorText(error, "초대 코드를 만들지 못했습니다."));
+      setMessage(errorText(error, "초대 메일을 보내지 못했습니다."));
     } finally {
-      setIsCreatingInvite(false);
+      setIsSendingInvite(false);
     }
   };
 
-  const copyInvite = async () => {
-    if (!inviteCode) {
-      return;
-    }
+  const cancelInvite = async (inviteId: string) => {
+    setCancellingInviteId(inviteId);
+    setMessage(null);
     try {
-      await navigator.clipboard.writeText(inviteCode);
-      setMessage("초대 코드를 복사했습니다.");
-    } catch {
-      setMessage("복사하지 못했습니다. 코드를 길게 눌러 복사해 주세요.");
+      await cancelPendingHouseholdInvite(inviteId);
+      await loadInvites();
+      setMessage("초대를 취소했습니다.");
+    } catch (error) {
+      setMessage(errorText(error, "초대를 취소하지 못했습니다."));
+    } finally {
+      setCancellingInviteId(null);
     }
   };
 
@@ -113,7 +140,7 @@ export default function SettingsPage() {
             <p className="text-xs font-black tracking-[0.18em] text-blue-100">SETTINGS</p>
             <h1 className="mt-2 text-2xl font-black">우리 가계부 설정</h1>
             <p className="mt-1 text-sm font-bold text-blue-100">
-              공유공간과 자동 입력, 파일 발송을 한곳에서 관리해요.
+              가족, 고정비, 내보내기를 관리해요.
             </p>
           </header>
 
@@ -126,9 +153,6 @@ export default function SettingsPage() {
                 <h2 className="mt-1 text-lg font-black">{membership.household.name}</h2>
                 <p className="mt-1 text-sm font-bold text-slate-500">
                   {membership.displayName} · {inputterLabel[membership.inputter]} · {user?.email}
-                </p>
-                <p className="mt-2 text-xs font-bold leading-5 text-slate-500">
-                  로그인은 새로고침하거나 브라우저를 다시 열어도 유지됩니다. 로그아웃하거나 저장된 사이트 데이터를 지우면 다시 로그인해야 해요.
                 </p>
               </div>
               <button
@@ -152,7 +176,7 @@ export default function SettingsPage() {
                 <div>
                   <h3 className="text-sm font-black">함께 쓰는 사람</h3>
                   <p className="mt-1 text-xs font-bold text-slate-500">
-                    각자 계정으로 로그인해 같은 거래내역을 봅니다.
+                    같은 거래내역을 공유합니다.
                   </p>
                 </div>
                 <span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-blue-700">
@@ -173,25 +197,67 @@ export default function SettingsPage() {
 
               {membership.role === "owner" && !partnerJoined ? (
                 <div className="mt-3 rounded-xl border border-dashed border-blue-300 bg-white p-3">
-                  <p className="text-sm font-black">배우자 초대</p>
+                  <p className="text-sm font-black">가족 초대</p>
                   <p className="mt-1 text-xs font-bold leading-5 text-slate-500">
-                    코드를 전달하면 배우자가 회원가입 후 ‘초대 코드로 참여’를 선택할 수 있어요. 새 코드를 만들면 이전 코드는 폐기됩니다.
+                    메일 링크에서 로그인하고 승인하면 추가됩니다.
                   </p>
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <form
+                    className="mt-3 flex flex-col gap-2 sm:flex-row"
+                    onSubmit={createInvite}
+                  >
+                    <label className="sr-only" htmlFor="household-invite-email">
+                      초대할 이메일
+                    </label>
+                    <input
+                      id="household-invite-email"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      className="input flex-1"
+                      inputMode="email"
+                      maxLength={320}
+                      placeholder="초대할 이메일"
+                      required
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(event) => setInviteEmail(event.target.value)}
+                    />
                     <button
                       className="btn-primary"
-                      disabled={isCreatingInvite}
-                      type="button"
-                      onClick={() => void createInvite()}
+                      disabled={isSendingInvite}
+                      type="submit"
                     >
-                      {isCreatingInvite ? "만드는 중…" : `${inputterLabel[partnerInputter]} 초대 코드 만들기`}
+                      {isSendingInvite ? "보내는 중..." : "초대 메일 보내기"}
                     </button>
-                    {inviteCode ? (
-                      <button className="btn-secondary font-mono" type="button" onClick={() => void copyInvite()}>
-                        {inviteCode} · 복사
+                  </form>
+
+                  {isLoadingInvites ? (
+                    <p className="mt-3 text-xs font-bold text-slate-500">
+                      초대 확인 중...
+                    </p>
+                  ) : null}
+                  {pendingInvites.map((invite) => (
+                    <div
+                      key={invite.id}
+                      className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-blue-50 px-3 py-2.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-900">
+                          {invite.inviteeEmail}
+                        </p>
+                        <p className="mt-0.5 text-xs font-bold text-blue-700">
+                          승인 대기 · {new Date(invite.expiresAt).toLocaleDateString("ko-KR")}까지
+                        </p>
+                      </div>
+                      <button
+                        className="shrink-0 text-xs font-black text-slate-500 underline-offset-4 hover:text-slate-800 hover:underline"
+                        disabled={cancellingInviteId === invite.id}
+                        type="button"
+                        onClick={() => void cancelInvite(invite.id)}
+                      >
+                        {cancellingInviteId === invite.id ? "취소 중..." : "초대 취소"}
                       </button>
-                    ) : null}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               ) : null}
             </div>

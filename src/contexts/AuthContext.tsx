@@ -44,7 +44,12 @@ type AuthContextValue = {
   membershipError: string | null;
   refreshMembership: () => Promise<HouseholdMembership | null>;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<SignUpResult>;
+  signInWithGoogle: (nextPath?: string | null) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    nextPath?: string | null
+  ) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
 };
 
@@ -210,9 +215,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
-    const emailRedirectTo =
-      typeof window === "undefined" ? undefined : window.location.origin + "/login";
+  const signInWithGoogle = useCallback(async (nextPath?: string | null) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const redirectUrl = new URL("/login", window.location.origin);
+    if (nextPath) {
+      redirectUrl.searchParams.set("next", nextPath);
+    }
+
+    const { error } = await getSupabaseBrowserClient().auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: redirectUrl.toString() }
+    });
+    if (error) {
+      throw error;
+    }
+  }, []);
+
+  const signUp = useCallback(async (
+    email: string,
+    password: string,
+    nextPath?: string | null
+  ) => {
+    let emailRedirectTo: string | undefined;
+    if (typeof window !== "undefined") {
+      const redirectUrl = new URL("/login", window.location.origin);
+      if (nextPath) {
+        redirectUrl.searchParams.set("next", nextPath);
+      }
+      emailRedirectTo = redirectUrl.toString();
+    }
+
     const { data, error } = await getSupabaseBrowserClient().auth.signUp({
       email: email.trim().toLowerCase(),
       password,
@@ -261,6 +296,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       membershipError,
       refreshMembership,
       signIn,
+      signInWithGoogle,
       signUp,
       signOut
     }),
@@ -273,6 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshMembership,
       session,
       signIn,
+      signInWithGoogle,
       signOut,
       signUp,
       user,
