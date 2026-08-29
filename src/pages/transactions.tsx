@@ -468,6 +468,7 @@ function TransactionRow({
   transaction: Transaction;
 }) {
   const isIncome = transaction.type === "income";
+  const isPending = transaction.syncStatus === "pending";
 
   return (
     <article className="relative rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-blue-200 hover:shadow-md">
@@ -482,6 +483,11 @@ function TransactionRow({
             >
               {transactionTypeLabel[transaction.type]}
             </span>
+            {isPending ? (
+              <span className="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700">
+                동기화 대기
+              </span>
+            ) : null}
             <h4 className="truncate text-sm font-black text-slate-950">
               {transaction.memo || "제목 없음"}
             </h4>
@@ -503,6 +509,7 @@ function TransactionRow({
       <div className="mt-3 flex justify-end gap-2 border-t border-slate-100 pt-2.5">
         <button
           className="min-h-11 rounded-lg px-3 py-1.5 text-xs font-black text-blue-700 transition hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          disabled={isPending}
           type="button"
           onClick={() => onEdit(transaction.id)}
         >
@@ -510,6 +517,7 @@ function TransactionRow({
         </button>
         <button
           className="min-h-11 rounded-lg px-3 py-1.5 text-xs font-black text-rose-600 transition hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+          disabled={isPending}
           type="button"
           onClick={() => onRemove(transaction)}
         >

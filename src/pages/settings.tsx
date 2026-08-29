@@ -2,6 +2,7 @@ import Head from "next/head";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import ExportSettingsSection from "@/components/ExportSettingsSection";
+import PwaSettingsSection from "@/components/PwaSettingsSection";
 import RecurringRulesSection from "@/components/RecurringRulesSection";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSupabaseClient } from "@/services/supabase";
@@ -202,6 +203,7 @@ export default function SettingsPage() {
             ) : null}
           </section>
 
+          <PwaSettingsSection />
           <RecurringRulesSection currentInputter={membership.inputter} />
           <ExportSettingsSection householdId={membership.householdId} />
         </div>

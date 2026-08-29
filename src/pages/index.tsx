@@ -11,6 +11,7 @@ import {
   getCategories,
   getTransaction,
   getTransactions,
+  OfflineMutationError,
   updateTransaction
 } from "@/services/api";
 import type {
@@ -289,8 +290,12 @@ export default function Home() {
         }
         setSuccessMessage("거래를 수정했습니다.");
       } else {
-        await createTransaction(payload);
-        setSuccessMessage("거래를 저장했습니다.");
+        const created = await createTransaction(payload);
+        setSuccessMessage(
+          created.syncStatus === "pending"
+            ? "오프라인에 저장했습니다. 연결되면 자동으로 동기화됩니다."
+            : "거래를 저장했습니다."
+        );
       }
       setForm({
         ...emptyForm,
@@ -303,7 +308,11 @@ export default function Home() {
       await load();
     } catch (error) {
       console.error("거래를 저장하지 못했습니다.", error);
-      setErrorMessage("거래를 저장하지 못했습니다. 입력 내용은 유지되었습니다.");
+      setErrorMessage(
+        error instanceof OfflineMutationError
+          ? error.message
+          : "거래를 저장하지 못했습니다. 입력 내용은 유지되었습니다."
+      );
     } finally {
       setIsSaving(false);
     }

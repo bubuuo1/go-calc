@@ -20,10 +20,12 @@ export const useRefreshOnFocus = (refresh: () => void | Promise<void>) => {
     };
 
     window.addEventListener("focus", refreshIfVisible);
+    window.addEventListener("ledger-sync-complete", refreshIfVisible);
     document.addEventListener("visibilitychange", refreshIfVisible);
 
     return () => {
       window.removeEventListener("focus", refreshIfVisible);
+      window.removeEventListener("ledger-sync-complete", refreshIfVisible);
       document.removeEventListener("visibilitychange", refreshIfVisible);
     };
   }, []);

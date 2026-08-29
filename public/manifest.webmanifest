@@ -1,0 +1,54 @@
+{
+  "id": "/",
+  "name": "솔샘네 가계부",
+  "short_name": "솔샘 가계부",
+  "description": "부부가 함께 쓰는 수입·지출 가계부",
+  "lang": "ko-KR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#2563eb",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "거래 입력",
+      "short_name": "입력",
+      "description": "새 수입 또는 지출을 입력합니다.",
+      "url": "/?source=shortcut",
+      "icons": [
+        {
+          "src": "/favicon.png",
+          "sizes": "512x512",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "이번 달 달력",
+      "short_name": "달력",
+      "description": "이번 달 거래 달력을 엽니다.",
+      "url": "/ledger?source=shortcut"
+    },
+    {
+      "name": "지출 통계",
+      "short_name": "통계",
+      "description": "이번 달 지출 통계를 엽니다.",
+      "url": "/stats?source=shortcut"
+    }
+  ]
+}

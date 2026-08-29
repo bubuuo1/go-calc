@@ -28,7 +28,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "recharts": "^2.12.7",
-    "resend": "^6.25.0"
+    "resend": "^6.25.0",
+    "web-push": "3.6.7"
   },
   "overrides": {
     "exceljs": {
@@ -40,6 +41,7 @@
     "@types/nodemailer": "8.0.1",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/web-push": "3.6.4",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.5.26",
     "tailwindcss": "^3.4.4",

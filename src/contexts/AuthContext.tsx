@@ -10,6 +10,12 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import { getSupabaseBrowserClient } from "@/services/supabase";
+import {
+  cacheMembership,
+  clearOfflineScope,
+  getCachedMembership
+} from "@/services/offline-storage";
+import { disablePushNotifications } from "@/services/push";
 import type {
   HouseholdMembership,
   HouseholdRole,
@@ -134,14 +140,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (requestId === membershipRequestRef.current) {
         setMembership(nextMembership);
       }
+      if (nextMembership) {
+        void cacheMembership(nextMembership).catch((cacheError) => {
+          console.warn("공유 가구 오프라인 정보를 저장하지 못했습니다.", cacheError);
+        });
+      }
       return nextMembership;
     } catch (error) {
+      const cachedMembership = await getCachedMembership(userId).catch(() => null);
       if (requestId === membershipRequestRef.current) {
         console.error("공유 가구 정보를 불러오지 못했습니다.", error);
-        setMembership(null);
-        setMembershipError("공유 가구 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        setMembership(cachedMembership);
+        setMembershipError(
+          cachedMembership
+            ? null
+            : "공유 가구 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
+        );
       }
-      return null;
+      return cachedMembership;
     } finally {
       if (requestId === membershipRequestRef.current) {
         setMembershipLoading(false);
@@ -211,9 +227,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    const signedOutUserId = userId;
+    await disablePushNotifications(true);
     const { error } = await getSupabaseBrowserClient().auth.signOut();
     if (error) {
       throw error;
+    }
+
+    if (signedOutUserId) {
+      await clearOfflineScope(signedOutUserId).catch((cacheError) => {
+        console.warn("로그아웃 후 오프라인 정보를 정리하지 못했습니다.", cacheError);
+      });
     }
 
     membershipRequestRef.current += 1;
@@ -223,7 +247,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMembershipError(null);
     setMembershipLoading(false);
     setMembershipCheckedUserId(null);
-  }, []);
+  }, [userId]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

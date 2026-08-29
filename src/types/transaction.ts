@@ -11,6 +11,7 @@ export type Transaction = {
   amount: number;
   memo: string;
   date: string;
+  syncStatus?: "pending";
 };
 
 export type TransactionInput = Omit<Transaction, "id">;
