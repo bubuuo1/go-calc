@@ -1,10 +1,12 @@
 const CACHE_PREFIX = "solsaem-ledger";
-const CACHE_NAME = CACHE_PREFIX + "-v1";
+const CACHE_NAME = CACHE_PREFIX + "-v2";
 const APP_SHELL = [
   "/",
   "/offline.html",
   "/manifest.webmanifest",
-  "/favicon.png"
+  "/favicon.png",
+  "/icon-192.png",
+  "/apple-touch-icon.png"
 ];
 
 self.addEventListener("install", (event) => {

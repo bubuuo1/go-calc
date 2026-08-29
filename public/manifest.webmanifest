@@ -12,6 +12,12 @@
   "categories": ["finance", "productivity"],
   "icons": [
     {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/favicon.png",
       "sizes": "512x512",
       "type": "image/png",
@@ -32,8 +38,8 @@
       "url": "/?source=shortcut",
       "icons": [
         {
-          "src": "/favicon.png",
-          "sizes": "512x512",
+          "src": "/icon-192.png",
+          "sizes": "192x192",
           "type": "image/png"
         }
       ]
