@@ -12,6 +12,8 @@ import {
 } from "@/server/export-email";
 import { isExportMonth, previousKoreaMonthKey } from "@/utils/export";
 
+export const config = { maxDuration: 60 };
+
 const requestIdPattern = /^[A-Za-z0-9_-]{8,80}$/;
 
 const getRequestId = (request: NextApiRequest) => {
@@ -82,14 +84,22 @@ export default async function handler(
         .json({ error: error.message, code: error.code });
     }
     if (error instanceof ExportEmailConfigurationError) {
-      console.error("이메일 전송 환경 설정이 누락되었습니다.", error.message);
+      console.error("이메일 전송 환경 설정이 누락되었습니다.", {
+        message: error.message,
+        providerCode: error.providerCode,
+        providerStatus: error.providerStatus
+      });
       return response.status(503).json({
         error: "메일 전송 설정이 아직 완료되지 않았습니다.",
         code: "email_not_configured"
       });
     }
     if (error instanceof ExportEmailDeliveryError) {
-      console.error("거래내역 이메일 전송에 실패했습니다.", error.message);
+      console.error("거래내역 이메일 전송에 실패했습니다.", {
+        message: error.message,
+        providerCode: error.providerCode,
+        providerStatus: error.providerStatus
+      });
       return response.status(502).json({
         error: "메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.",
         code: "email_delivery_failed"

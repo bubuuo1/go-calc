@@ -8,6 +8,7 @@ import {
 import type { ExportFormat, ExportScheduleInput } from "@/types/export";
 import {
   isExportMonth,
+  isExportSendDay,
   previousKoreaMonthKey
 } from "@/utils/export-shared";
 
@@ -93,8 +94,8 @@ export default function ExportSettingsSection({
       setStatus({ tone: "error", text: "이메일 주소 형식을 확인해 주세요." });
       return false;
     }
-    if (sendDay < 1 || sendDay > 28) {
-      setStatus({ tone: "error", text: "발송일은 1일부터 28일까지 선택해 주세요." });
+    if (!isExportSendDay(sendDay)) {
+      setStatus({ tone: "error", text: "발송일은 1일부터 31일까지 선택해 주세요." });
       return false;
     }
     return true;
@@ -266,12 +267,12 @@ export default function ExportSettingsSection({
               </select>
             </label>
             <label className="text-sm font-black text-slate-800" htmlFor="export-send-day">
-              매월 발송일
+              전월 내역 발송일
               <input
                 className="input mt-2"
                 disabled={busy}
                 id="export-send-day"
-                max={28}
+                max={31}
                 min={1}
                 type="number"
                 value={sendDay}
@@ -279,6 +280,9 @@ export default function ExportSettingsSection({
               />
             </label>
           </div>
+          <p className="mt-3 text-xs font-bold leading-5 text-slate-500">
+            선택한 날짜가 없는 달에는 다음 달 1일에 발송해요.
+          </p>
 
           <label className="mt-4 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-blue-100 bg-white px-3 py-2 text-sm font-black text-slate-800">
             <input

@@ -169,13 +169,31 @@ create table if not exists public.export_schedules (
     and recipient_email ~* '^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}$'
   ),
   format text not null default 'xlsx' check (format in ('csv', 'xlsx')),
-  send_day integer not null default 1 check (send_day between 1 and 28),
+  send_day integer not null default 1 check (send_day between 1 and 31),
   active boolean not null default false,
   timezone text not null default 'Asia/Seoul' check (timezone = 'Asia/Seoul'),
-  last_sent_period text check (last_sent_period is null or last_sent_period ~ '^\d{4}-\d{2}$'),
+  last_sent_period text check (
+    last_sent_period is null
+    or last_sent_period ~ '^\d{4}-(0[1-9]|1[0-2])$'
+  ),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.export_schedules
+  drop constraint if exists export_schedules_send_day_check;
+alter table public.export_schedules
+  add constraint export_schedules_send_day_check
+  check (send_day between 1 and 31);
+
+alter table public.export_schedules
+  drop constraint if exists export_schedules_last_sent_period_check;
+alter table public.export_schedules
+  add constraint export_schedules_last_sent_period_check
+  check (
+    last_sent_period is null
+    or last_sent_period ~ '^\d{4}-(0[1-9]|1[0-2])$'
+  );
 
 create table if not exists private.automation_secrets (
   key text primary key,
@@ -865,21 +883,70 @@ set search_path = ''
 as $$
 declare
   today_in_seoul date := (now() at time zone 'Asia/Seoul')::date;
-  period_start date := (date_trunc('month', today_in_seoul) - interval '1 month')::date;
-  period_end date := date_trunc('month', today_in_seoul)::date;
-  target_period text := to_char(period_start, 'YYYY-MM');
+  current_month_start date := date_trunc('month', today_in_seoul)::date;
+  current_day integer := extract(day from today_in_seoul)::integer;
 begin
   if not private.verify_automation_secret(automation_secret) then
     raise exception 'Invalid automation secret';
   end if;
 
   return query
+  with schedule_dates as (
+    select
+      schedule.*,
+      (schedule.updated_at at time zone 'Asia/Seoul')::date as schedule_start_date
+    from public.export_schedules as schedule
+    where schedule.active
+  ),
+  period_bounds as (
+    select
+      schedule.*,
+      case
+        when schedule.send_day <= current_day then
+          (current_month_start - interval '1 month')::date
+        else (current_month_start - interval '2 months')::date
+      end as latest_period_start,
+      case
+        when schedule.schedule_start_date <= (
+          case
+            when schedule.send_day <= extract(
+              day from (
+                date_trunc('month', schedule.schedule_start_date)
+                + interval '1 month - 1 day'
+              )
+            )::integer then
+              (
+                date_trunc('month', schedule.schedule_start_date)
+                + (schedule.send_day - 1) * interval '1 day'
+              )::date
+            else
+              (
+                date_trunc('month', schedule.schedule_start_date)
+                + interval '1 month'
+              )::date
+          end
+        ) then
+          (date_trunc('month', schedule.schedule_start_date) - interval '1 month')::date
+        else
+          date_trunc('month', schedule.schedule_start_date)::date
+      end as initial_period_start
+    from schedule_dates as schedule
+  ),
+  due_schedules as (
+    select
+      schedule.*,
+      case
+        when schedule.last_sent_period is null then schedule.initial_period_start
+        else ((schedule.last_sent_period || '-01')::date + interval '1 month')::date
+      end as period_start
+    from period_bounds as schedule
+  )
   select
     schedule.household_id,
     household.name,
     schedule.recipient_email,
     schedule.format,
-    target_period,
+    to_char(schedule.period_start, 'YYYY-MM'),
     coalesce(
       jsonb_agg(
         jsonb_build_object(
@@ -895,20 +962,19 @@ begin
       ) filter (where transaction.id is not null),
       '[]'::jsonb
     )
-  from public.export_schedules as schedule
+  from due_schedules as schedule
   join public.households as household on household.id = schedule.household_id
   left join public.transactions as transaction
     on transaction.household_id = schedule.household_id
-    and transaction.date >= period_start
-    and transaction.date < period_end
-  where schedule.active
-    and schedule.send_day <= extract(day from today_in_seoul)::integer
-    and schedule.last_sent_period is distinct from target_period
+    and transaction.date >= schedule.period_start
+    and transaction.date < (schedule.period_start + interval '1 month')
+  where schedule.period_start <= schedule.latest_period_start
   group by
     schedule.household_id,
     household.name,
     schedule.recipient_email,
-    schedule.format;
+    schedule.format,
+    schedule.period_start;
 end
 $$;
 
@@ -928,14 +994,14 @@ begin
   if not private.verify_automation_secret(automation_secret) then
     raise exception 'Invalid automation secret';
   end if;
-  if target_period !~ '^\d{4}-\d{2}$' then
+  if target_period !~ '^\d{4}-(0[1-9]|1[0-2])$' then
     raise exception 'Period is invalid';
   end if;
 
   update public.export_schedules
   set last_sent_period = target_period
   where household_id = target_household_id
-    and last_sent_period is distinct from target_period;
+    and (last_sent_period is null or last_sent_period < target_period);
 
   get diagnostics updated_rows = row_count;
   return updated_rows = 1;

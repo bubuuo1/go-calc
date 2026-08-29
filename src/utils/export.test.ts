@@ -8,6 +8,7 @@ import {
   previousKoreaMonthKey,
   summarizeTransactions
 } from "./export";
+import { isExportSendDay } from "./export-shared";
 
 const makeTransaction = (
   overrides: Partial<ExportTransaction> = {}
@@ -80,6 +81,18 @@ describe("export helpers", () => {
     expect(isExportMonth("2026-00")).toBe(false);
     expect(isExportMonth("2026-13")).toBe(false);
     expect(isExportMonth(["2026-08"])).toBe(false);
+  });
+
+  it("자동 발송일은 1일부터 31일까지의 정수만 허용한다", () => {
+    expect(isExportSendDay(1)).toBe(true);
+    expect(isExportSendDay(29)).toBe(true);
+    expect(isExportSendDay(30)).toBe(true);
+    expect(isExportSendDay(31)).toBe(true);
+    expect(isExportSendDay(0)).toBe(false);
+    expect(isExportSendDay(32)).toBe(false);
+    expect(isExportSendDay(1.5)).toBe(false);
+    expect(isExportSendDay(Number.NaN)).toBe(false);
+    expect(isExportSendDay("31")).toBe(false);
   });
 
   it("한국 시간 기준 직전 월을 계산한다", () => {

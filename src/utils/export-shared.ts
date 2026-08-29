@@ -1,6 +1,12 @@
 export const isExportMonth = (value: unknown): value is string =>
   typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
 
+export const isExportSendDay = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isInteger(value) &&
+  value >= 1 &&
+  value <= 31;
+
 export const previousKoreaMonthKey = (now = new Date()) => {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
