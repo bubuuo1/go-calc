@@ -1,10 +1,17 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ErrorBanner from "@/components/ErrorBanner";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { deleteTransaction, getTransactions } from "@/services/api";
 import type { Transaction } from "@/types/transaction";
-import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
+import {
+  currentMonthKey,
+  isMonthKey,
+  monthDateRange,
+  shiftMonthKey
+} from "@/utils/month";
 import {
   getStoredMonth,
   hasAppEntered,
@@ -28,21 +35,38 @@ const currency = new Intl.NumberFormat("ko-KR", {
 
 export default function LedgerPage() {
   const router = useRouter();
+  const loadRequestRef = useRef(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [month, setMonth] = useState(currentMonthKey());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    const requestId = ++loadRequestRef.current;
+
     try {
-      setTransactions(await getTransactions());
-    } catch {
-      setTransactions([]);
+      const nextTransactions = await getTransactions(monthDateRange(month));
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
+
+      setTransactions(nextTransactions);
+      setErrorMessage(null);
+    } catch (error) {
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
+
+      console.error("달력 데이터를 불러오지 못했습니다.", error);
+      setErrorMessage("달력 데이터를 불러오지 못했습니다. 연결을 확인해 주세요.");
     }
-  };
+  }, [month]);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
+
+  useRefreshOnFocus(load);
 
   useEffect(() => {
     if (!router.isReady) {
@@ -83,9 +107,13 @@ export default function LedgerPage() {
 
   const remove = async (id: string) => {
     try {
+      setErrorMessage(null);
       await deleteTransaction(id);
       await load();
-    } catch {}
+    } catch (error) {
+      console.error("거래를 삭제하지 못했습니다.", error);
+      setErrorMessage("거래를 삭제하지 못했습니다. 목록을 새로고침해 확인해 주세요.");
+    }
   };
 
   const edit = (id: string) => {
@@ -101,6 +129,12 @@ export default function LedgerPage() {
         <meta name="description" content="월간 달력" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
+
+      <ErrorBanner
+        message={errorMessage}
+        onDismiss={() => setErrorMessage(null)}
+        onRetry={() => void load()}
+      />
 
       <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">

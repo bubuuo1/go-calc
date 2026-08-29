@@ -1,10 +1,17 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ErrorBanner from "@/components/ErrorBanner";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { deleteTransaction, getCategories, getTransactions } from "@/services/api";
 import type { Transaction, TransactionType } from "@/types/transaction";
-import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
+import {
+  currentMonthKey,
+  isMonthKey,
+  monthDateRange,
+  shiftMonthKey
+} from "@/utils/month";
 import {
   getStoredMonth,
   hasAppEntered,
@@ -29,6 +36,7 @@ const currency = new Intl.NumberFormat("ko-KR", {
 
 export default function TransactionsPage() {
   const router = useRouter();
+  const loadRequestRef = useRef(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [month, setMonth] = useState(currentMonthKey());
@@ -36,24 +44,39 @@ export default function TransactionsPage() {
   const [typeFilter, setTypeFilter] = useState<"all" | TransactionType>("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    const requestId = ++loadRequestRef.current;
+
     try {
       const [nextTransactions, nextCategories] = await Promise.all([
-        getTransactions(),
+        getTransactions(monthDateRange(month)),
         getCategories()
       ]);
+
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
+
       setTransactions(nextTransactions);
       setCategories(nextCategories.length > 0 ? nextCategories : DEFAULT_CATEGORIES);
-    } catch {
-      setTransactions([]);
-      setCategories(DEFAULT_CATEGORIES);
+      setErrorMessage(null);
+    } catch (error) {
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
+
+      console.error("거래 목록을 불러오지 못했습니다.", error);
+      setErrorMessage("거래 목록을 불러오지 못했습니다. 연결을 확인해 주세요.");
     }
-  };
+  }, [month]);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
+
+  useRefreshOnFocus(load);
 
   useEffect(() => {
     if (!router.isReady) {
@@ -116,9 +139,13 @@ export default function TransactionsPage() {
 
   const remove = async (id: string) => {
     try {
+      setErrorMessage(null);
       await deleteTransaction(id);
       await load();
-    } catch {}
+    } catch (error) {
+      console.error("거래를 삭제하지 못했습니다.", error);
+      setErrorMessage("거래를 삭제하지 못했습니다. 목록을 새로고침해 확인해 주세요.");
+    }
   };
 
   return (
@@ -128,6 +155,12 @@ export default function TransactionsPage() {
         <meta name="description" content="거래리스트" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
+
+      <ErrorBanner
+        message={errorMessage}
+        onDismiss={() => setErrorMessage(null)}
+        onRetry={() => void load()}
+      />
 
       <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">

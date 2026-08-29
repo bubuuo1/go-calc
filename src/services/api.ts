@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Transaction, TransactionInput } from "@/types/transaction";
 import { DEFAULT_CATEGORIES } from "@/utils/ledger";
+import type { TransactionDateRange } from "@/utils/month";
 
 type TransactionRow = {
   id: string;
@@ -17,7 +18,8 @@ type TransactionRow = {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 let supabaseClient: SupabaseClient | null = null;
-let transactionCache: Transaction[] | null = null;
+const TRANSACTION_COLUMNS = "id,type,payment_method,inputter,category,amount,memo,date";
+const TRANSACTION_PAGE_SIZE = 1000;
 
 const getSupabase = () => {
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -52,30 +54,54 @@ const toRow = (transaction: TransactionInput, id: string): TransactionRow => ({
   date: transaction.date
 });
 
-const sortTransactions = (transactions: Transaction[]) =>
-  [...transactions].sort((left, right) => {
-    const dateOrder = right.date.localeCompare(left.date);
-    return dateOrder || right.id.localeCompare(left.id);
-  });
+export const getTransactions = async (range?: TransactionDateRange) => {
+  const supabase = getSupabase();
+  const transactions: Transaction[] = [];
 
-export const getTransactions = async () => {
-  if (transactionCache) {
-    return transactionCache;
+  for (let from = 0; ; from += TRANSACTION_PAGE_SIZE) {
+    let request = supabase
+      .from("transactions")
+      .select(TRANSACTION_COLUMNS)
+      .order("date", { ascending: false })
+      .order("id", { ascending: false });
+
+    if (range) {
+      request = request.gte("date", range.startDate).lt("date", range.endDateExclusive);
+    }
+
+    const { data, error } = await request.range(
+      from,
+      from + TRANSACTION_PAGE_SIZE - 1
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    const page = (data || []).map((row) => toTransaction(row as TransactionRow));
+    transactions.push(...page);
+
+    if (page.length < TRANSACTION_PAGE_SIZE) {
+      break;
+    }
   }
 
+  return transactions;
+};
+
+export const getTransaction = async (id: string) => {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("transactions")
-    .select("id,type,payment_method,inputter,category,amount,memo,date")
-    .order("date", { ascending: false })
-    .order("id", { ascending: false });
+    .select(TRANSACTION_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
 
   if (error) {
     throw error;
   }
 
-  transactionCache = (data || []).map((row) => toTransaction(row as TransactionRow));
-  return transactionCache;
+  return data ? toTransaction(data as TransactionRow) : null;
 };
 
 export const createTransaction = async (transaction: TransactionInput) => {
@@ -84,18 +110,14 @@ export const createTransaction = async (transaction: TransactionInput) => {
   const { data, error } = await supabase
     .from("transactions")
     .insert(toRow(transaction, id))
-    .select("id,type,payment_method,inputter,category,amount,memo,date")
+    .select(TRANSACTION_COLUMNS)
     .single();
 
   if (error) {
     throw error;
   }
 
-  const createdTransaction = toTransaction(data as TransactionRow);
-  transactionCache = transactionCache
-    ? sortTransactions([createdTransaction, ...transactionCache])
-    : null;
-  return createdTransaction;
+  return toTransaction(data as TransactionRow);
 };
 
 export const updateTransaction = async (id: string, transaction: TransactionInput) => {
@@ -104,22 +126,14 @@ export const updateTransaction = async (id: string, transaction: TransactionInpu
     .from("transactions")
     .update(toRow(transaction, id))
     .eq("id", id)
-    .select("id,type,payment_method,inputter,category,amount,memo,date")
+    .select(TRANSACTION_COLUMNS)
     .single();
 
   if (error) {
     throw error;
   }
 
-  const updatedTransaction = toTransaction(data as TransactionRow);
-  transactionCache = transactionCache
-    ? sortTransactions(
-        transactionCache.map((transaction) =>
-          transaction.id === updatedTransaction.id ? updatedTransaction : transaction
-        )
-      )
-    : null;
-  return updatedTransaction;
+  return toTransaction(data as TransactionRow);
 };
 
 export const deleteTransaction = async (id: string) => {
@@ -130,9 +144,6 @@ export const deleteTransaction = async (id: string) => {
     throw error;
   }
 
-  transactionCache = transactionCache
-    ? transactionCache.filter((transaction) => transaction.id !== id)
-    : null;
 };
 
 export const getCategories = async () => DEFAULT_CATEGORIES;

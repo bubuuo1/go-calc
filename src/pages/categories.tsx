@@ -1,10 +1,17 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ErrorBanner from "@/components/ErrorBanner";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { getTransactions } from "@/services/api";
 import type { Transaction } from "@/types/transaction";
-import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
+import {
+  currentMonthKey,
+  isMonthKey,
+  monthDateRange,
+  shiftMonthKey
+} from "@/utils/month";
 import { getStoredMonth, hasAppEntered, setStoredMonth } from "@/utils/session";
 
 const currency = new Intl.NumberFormat("ko-KR", {
@@ -15,20 +22,37 @@ const currency = new Intl.NumberFormat("ko-KR", {
 
 export default function CategoriesPage() {
   const router = useRouter();
+  const loadRequestRef = useRef(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [month, setMonth] = useState(currentMonthKey());
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const requestId = ++loadRequestRef.current;
+
+    try {
+      const nextTransactions = await getTransactions(monthDateRange(month));
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
+
+      setTransactions(nextTransactions);
+      setErrorMessage(null);
+    } catch (error) {
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
+
+      console.error("카테고리 데이터를 불러오지 못했습니다.", error);
+      setErrorMessage("카테고리 데이터를 불러오지 못했습니다. 연결을 확인해 주세요.");
+    }
+  }, [month]);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setTransactions(await getTransactions());
-      } catch {
-        setTransactions([]);
-      }
-    };
+    void load();
+  }, [load]);
 
-    load();
-  }, []);
+  useRefreshOnFocus(load);
 
   useEffect(() => {
     if (!router.isReady) {
@@ -82,6 +106,12 @@ export default function CategoriesPage() {
         <meta name="description" content="카테고리별 지출 분석" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
+
+      <ErrorBanner
+        message={errorMessage}
+        onDismiss={() => setErrorMessage(null)}
+        onRetry={() => void load()}
+      />
 
       <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">

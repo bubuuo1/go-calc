@@ -1,10 +1,13 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ErrorBanner from "@/components/ErrorBanner";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import {
   createTransaction,
   getCategories,
+  getTransaction,
   getTransactions,
   updateTransaction
 } from "@/services/api";
@@ -15,7 +18,13 @@ import type {
   TransactionInput,
   TransactionType
 } from "@/types/transaction";
-import { currentMonthKey, isMonthKey, shiftMonthKey } from "@/utils/month";
+import {
+  currentDateKey,
+  currentMonthKey,
+  isMonthKey,
+  monthDateRange,
+  shiftMonthKey
+} from "@/utils/month";
 import {
   clearStoredEditReturnPath,
   clearStoredEditTransactionId,
@@ -41,7 +50,6 @@ const currency = new Intl.NumberFormat("ko-KR", {
 });
 
 const numberFormat = new Intl.NumberFormat("ko-KR");
-const today = () => new Date().toISOString().slice(0, 10);
 
 const emptyForm: TransactionInput = {
   type: "expense",
@@ -50,7 +58,7 @@ const emptyForm: TransactionInput = {
   category: "식비",
   amount: 0,
   memo: "",
-  date: today()
+  date: ""
 };
 
 const parseAmount = (value: string) => Number(value.replace(/[^\d]/g, ""));
@@ -60,6 +68,7 @@ export default function Home() {
   const router = useRouter();
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const amountInputRef = useRef<HTMLInputElement | null>(null);
+  const loadRequestRef = useRef(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [form, setForm] = useState<TransactionInput>(emptyForm);
@@ -72,19 +81,72 @@ export default function Home() {
   const [visibleMonth, setVisibleMonth] = useState(currentMonthKey());
   const [pickerMonth, setPickerMonth] = useState(currentMonthKey());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    const requestId = ++loadRequestRef.current;
+
     try {
       const [nextTransactions, nextCategories] = await Promise.all([
-        getTransactions(),
+        getTransactions(monthDateRange(visibleMonth)),
         getCategories()
       ]);
+
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
+
       setTransactions(nextTransactions);
       setCategories(nextCategories.length > 0 ? nextCategories : DEFAULT_CATEGORIES);
+      setErrorMessage(null);
+    } catch (error) {
+      if (requestId !== loadRequestRef.current) {
+        return;
+      }
 
+      console.error("가계부 데이터를 불러오지 못했습니다.", error);
+      setErrorMessage("가계부 데이터를 불러오지 못했습니다. 연결을 확인해 주세요.");
+    }
+  }, [visibleMonth]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useRefreshOnFocus(load);
+
+  useEffect(() => {
+    setForm((current) =>
+      current.date ? current : { ...current, date: currentDateKey() }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
+
+    let active = true;
+
+    const hydrateEditTransaction = async () => {
       const editId = getStoredEditTransactionId();
-      const editTransaction = nextTransactions.find((transaction) => transaction.id === editId);
-      if (editTransaction) {
+      if (!editId) {
+        return;
+      }
+
+      try {
+        const editTransaction = await getTransaction(editId);
+        if (!active) {
+          return;
+        }
+
+        if (!editTransaction) {
+          clearStoredEditTransactionId();
+          clearStoredEditReturnPath();
+          setErrorMessage("수정할 거래를 찾을 수 없습니다.");
+          return;
+        }
+
         setEditingId(editTransaction.id);
         setForm({
           type: editTransaction.type,
@@ -97,16 +159,22 @@ export default function Home() {
         });
         setPickerMonth(editTransaction.date.slice(0, 7));
         setVisibleMonth(editTransaction.date.slice(0, 7));
-      }
-    } catch {
-      setTransactions([]);
-      setCategories(DEFAULT_CATEGORIES);
-    }
-  };
+      } catch (error) {
+        if (!active) {
+          return;
+        }
 
-  useEffect(() => {
-    load();
-  }, []);
+        console.error("수정할 거래를 불러오지 못했습니다.", error);
+        setErrorMessage("수정할 거래를 불러오지 못했습니다. 연결을 확인해 주세요.");
+      }
+    };
+
+    void hydrateEditTransaction();
+
+    return () => {
+      active = false;
+    };
+  }, [router.isReady]);
 
   useEffect(() => {
     if (!router.isReady) {
@@ -122,7 +190,7 @@ export default function Home() {
     setStoredMonth(nextMonth);
     setSelectedInputter(storedInputter);
 
-    if (storedInputter) {
+    if (storedInputter && !getStoredEditTransactionId()) {
       setForm((current) => ({ ...current, inputter: storedInputter }));
     }
 
@@ -173,6 +241,7 @@ export default function Home() {
 
     try {
       setValidationError(null);
+      setErrorMessage(null);
       if (editingId) {
         const returnPath = getStoredEditReturnPath();
         await updateTransaction(editingId, payload);
@@ -196,7 +265,10 @@ export default function Home() {
       setPickerMonth(form.date.slice(0, 7));
       setIsPickerOpen(false);
       await load();
-    } catch {}
+    } catch (error) {
+      console.error("거래를 저장하지 못했습니다.", error);
+      setErrorMessage("거래를 저장하지 못했습니다. 입력 내용은 유지되었습니다.");
+    }
   };
 
   const chooseInputter = (inputter: Inputter) => {
@@ -212,6 +284,12 @@ export default function Home() {
         <meta name="description" content="Supabase 기반 가계부 입력 화면" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
+
+      <ErrorBanner
+        message={errorMessage}
+        onDismiss={() => setErrorMessage(null)}
+        onRetry={() => void load()}
+      />
 
       <main className="min-h-screen bg-slate-50 text-slate-950">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">
