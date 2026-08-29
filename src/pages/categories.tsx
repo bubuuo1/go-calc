@@ -1,8 +1,9 @@
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import BottomNav from "@/components/BottomNav";
 import ErrorBanner from "@/components/ErrorBanner";
+import StatsSubnav from "@/components/StatsSubnav";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { getTransactions } from "@/services/api";
 import type { Transaction } from "@/types/transaction";
@@ -113,26 +114,15 @@ export default function CategoriesPage() {
         onRetry={() => void load()}
       />
 
-      <main className="min-h-screen bg-slate-50 text-slate-950">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">
-          <header className="flex flex-col gap-3 border-b border-slate-200 pb-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-              <p className="flex items-center gap-2 text-lg font-black tracking-normal text-slate-900">
-                <span className="flex -space-x-2">
-                  <img alt="" className="h-11 w-11 rounded-full border-2 border-white object-cover shadow-sm sm:h-9 sm:w-9" src="/images/header-2.png" />
-                  <img alt="" className="h-11 w-11 rounded-full border-2 border-white object-cover shadow-sm sm:h-9 sm:w-9" src="/images/header-3.png" />
-                </span>
-                <span>솔샘네 가계부</span>
-              </p>
-              </div>
-              <IconNav href="/" label="가계부" type="home" />
-            </div>
-            <div className="flex flex-wrap justify-center gap-2">
-              <IconNav href="/totals" label="전체 통계" type="totals" />
-              <IconNav href="/stats" label="일별 그래프" type="stats" />
-            </div>
+      <main className="min-h-screen bg-slate-50 pb-28 text-slate-950">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-5 sm:px-5 lg:px-6">
+          <header className="rounded-2xl bg-gradient-to-br from-blue-700 to-blue-600 p-5 text-white shadow-lg shadow-blue-200/60">
+            <p className="text-xs font-black tracking-[0.18em] text-blue-100">솔샘네 가계부</p>
+            <h1 className="mt-2 text-2xl font-black">어디에 많이 썼을까요?</h1>
+            <p className="mt-1 text-sm font-bold text-blue-100">카테고리별 지출 비중을 비교해요.</p>
           </header>
+
+          <StatsSubnav />
 
           <section className="panel flex justify-center p-3">
             <div className="flex items-center gap-2">
@@ -188,52 +178,9 @@ export default function CategoriesPage() {
             )}
           </section>
         </div>
+        <BottomNav />
       </main>
     </>
-  );
-}
-
-function IconNav({
-  href,
-  label,
-  type
-}: {
-  href: string;
-  label: string;
-  type: "home" | "totals" | "stats";
-}) {
-  return (
-    <Link
-      aria-label={label}
-      className="flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-400 hover:text-slate-950"
-      href={href}
-      replace
-      title={label}
-    >
-      {type === "home" ? (
-        <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M3 11l9-8 9 8" />
-          <path d="M5 10v10h14V10" />
-          <path d="M9 20v-6h6v6" />
-        </svg>
-      ) : null}
-      {type === "totals" ? (
-        <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M4 19V5" />
-          <path d="M4 19h16" />
-          <path d="M8 16v-5" />
-          <path d="M12 16V8" />
-          <path d="M16 16v-3" />
-        </svg>
-      ) : null}
-      {type === "stats" ? (
-        <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M4 19h16" />
-          <path d="M4 15l4-4 4 3 5-7 3 4" />
-        </svg>
-      ) : null}
-      <span className="whitespace-nowrap text-[8px] font-black leading-none">{label}</span>
-    </Link>
   );
 }
 
@@ -250,7 +197,7 @@ function SummaryCard({
 }) {
   const toneClass = {
     expense: "text-red-600",
-    primary: "text-slate-950"
+    primary: "text-blue-950"
   }[tone];
 
   return (

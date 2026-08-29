@@ -1,8 +1,9 @@
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import BottomNav from "@/components/BottomNav";
 import ErrorBanner from "@/components/ErrorBanner";
+import FeedbackToast from "@/components/FeedbackToast";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import {
   createTransaction,
@@ -63,9 +64,32 @@ const emptyForm: TransactionInput = {
 
 const parseAmount = (value: string) => Number(value.replace(/[^\d]/g, ""));
 const formatAmount = (value: number) => (value ? numberFormat.format(value) : "");
+const isDateKey = (value: unknown): value is string => {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) {
+    return false;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+
+  return (
+    year >= 1000 &&
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+};
 
 export default function Home() {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement | null>(null);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const amountInputRef = useRef<HTMLInputElement | null>(null);
   const loadRequestRef = useRef(0);
@@ -82,6 +106,9 @@ export default function Home() {
   const [pickerMonth, setPickerMonth] = useState(currentMonthKey());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const load = useCallback(async () => {
     const requestId = ++loadRequestRef.current;
@@ -99,6 +126,7 @@ export default function Home() {
       setTransactions(nextTransactions);
       setCategories(nextCategories.length > 0 ? nextCategories : DEFAULT_CATEGORIES);
       setErrorMessage(null);
+      setIsLoading(false);
     } catch (error) {
       if (requestId !== loadRequestRef.current) {
         return;
@@ -106,10 +134,12 @@ export default function Home() {
 
       console.error("가계부 데이터를 불러오지 못했습니다.", error);
       setErrorMessage("가계부 데이터를 불러오지 못했습니다. 연결을 확인해 주세요.");
+      setIsLoading(false);
     }
   }, [visibleMonth]);
 
   useEffect(() => {
+    setIsLoading(true);
     void load();
   }, [load]);
 
@@ -183,7 +213,12 @@ export default function Home() {
 
     markAppEntered();
     const queryMonth = router.query.month;
-    const nextMonth = isMonthKey(queryMonth) ? queryMonth : getStoredMonth();
+    const queryDate = router.query.date;
+    const nextMonth = isDateKey(queryDate)
+      ? queryDate.slice(0, 7)
+      : isMonthKey(queryMonth)
+        ? queryMonth
+        : getStoredMonth();
     const storedInputter = getStoredInputter();
     setVisibleMonth(nextMonth);
     setPickerMonth(nextMonth);
@@ -194,10 +229,14 @@ export default function Home() {
       setForm((current) => ({ ...current, inputter: storedInputter }));
     }
 
-    if (isMonthKey(queryMonth)) {
-      router.replace(router.pathname, undefined, { shallow: true });
+    if (isDateKey(queryDate) && !getStoredEditTransactionId()) {
+      setForm((current) => ({ ...current, date: queryDate }));
     }
-  }, [router.isReady, router.query.month]);
+
+    if (isMonthKey(queryMonth) || isDateKey(queryDate)) {
+      void router.replace(router.pathname, undefined, { shallow: true });
+    }
+  }, [router.isReady, router.query.date, router.query.month]);
 
   const monthlyStats = useMemo(() => {
     const monthTransactions = transactions.filter((transaction) =>
@@ -212,6 +251,8 @@ export default function Home() {
 
     return { income, expense, balance: income - expense };
   }, [transactions, visibleMonth]);
+
+  const recentTransactions = useMemo(() => transactions.slice(0, 3), [transactions]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -240,8 +281,10 @@ export default function Home() {
     }
 
     try {
+      setIsSaving(true);
       setValidationError(null);
       setErrorMessage(null);
+      setSuccessMessage(null);
       if (editingId) {
         const returnPath = getStoredEditReturnPath();
         await updateTransaction(editingId, payload);
@@ -250,11 +293,13 @@ export default function Home() {
         clearStoredEditReturnPath();
         setStoredMonth(payload.date.slice(0, 7));
         if (returnPath) {
-          router.replace(returnPath);
+          void router.replace({ pathname: returnPath, query: { updated: "1" } });
           return;
         }
+        setSuccessMessage("거래를 수정했습니다.");
       } else {
         await createTransaction(payload);
+        setSuccessMessage("거래를 저장했습니다.");
       }
       setForm({
         ...emptyForm,
@@ -268,6 +313,8 @@ export default function Home() {
     } catch (error) {
       console.error("거래를 저장하지 못했습니다.", error);
       setErrorMessage("거래를 저장하지 못했습니다. 입력 내용은 유지되었습니다.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -275,6 +322,28 @@ export default function Home() {
     setSelectedInputter(inputter);
     setStoredInputter(inputter);
     setForm((current) => ({ ...current, inputter }));
+  };
+
+  const reuseTransaction = (transaction: Transaction) => {
+    const date = currentDateKey();
+    setEditingId(null);
+    clearStoredEditTransactionId();
+    clearStoredEditReturnPath();
+    setForm({
+      type: transaction.type,
+      paymentMethod: transaction.paymentMethod,
+      inputter: selectedInputter || transaction.inputter,
+      category: transaction.category,
+      amount: transaction.amount,
+      memo: transaction.memo,
+      date
+    });
+    setVisibleMonth(date.slice(0, 7));
+    setPickerMonth(date.slice(0, 7));
+    setStoredMonth(date.slice(0, 7));
+    setValidationError(null);
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    titleInputRef.current?.focus();
   };
 
   return (
@@ -291,59 +360,125 @@ export default function Home() {
         onRetry={() => void load()}
       />
 
-      <main className="min-h-screen bg-slate-50 text-slate-950">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-5 lg:px-6">
-          <header className="order-1 flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
+      <FeedbackToast
+        message={successMessage}
+        onDismiss={() => setSuccessMessage(null)}
+        tone="success"
+      />
+
+      <main className="min-h-screen bg-slate-50 pb-28 text-slate-950">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6">
+          <header className="flex items-center justify-between gap-3">
             <div>
-              <p className="flex items-center gap-2 text-lg font-black tracking-normal text-slate-900">
-                <span className="flex -space-x-2">
-                  <img alt="" className="h-11 w-11 rounded-full border-2 border-white object-cover shadow-sm sm:h-9 sm:w-9" src="/images/header-2.png" />
-                  <img alt="" className="h-11 w-11 rounded-full border-2 border-white object-cover shadow-sm sm:h-9 sm:w-9" src="/images/header-3.png" />
-                </span>
-                <span>솔샘네 가계부</span>
-              </p>
+              <p className="text-xs font-black text-blue-600">{visibleMonth}</p>
+              <h1 className="mt-0.5 text-xl font-black tracking-tight text-slate-950">
+                솔샘네 가계부
+              </h1>
             </div>
-            <div className="hidden flex-col gap-2 sm:flex sm:flex-row sm:items-end">
-              <Link
-                className="btn-secondary inline-flex h-9 items-center justify-center"
-                href="/totals"
-                replace
-              >
-                전체 통계 보기
-              </Link>
-              <Link
-                className="btn-secondary inline-flex h-9 items-center justify-center"
-                href="/stats"
-                replace
-              >
-                일별 그래프 보기
-              </Link>
+            <div aria-label="입력자 선택" className="flex items-center -space-x-2">
+              {(["husband", "wife"] as Inputter[]).map((inputter, index) => (
+                <button
+                  key={inputter}
+                  aria-label={inputterLabel[inputter] + "으로 입력"}
+                  aria-pressed={selectedInputter === inputter}
+                  className={
+                    selectedInputter === inputter
+                      ? "relative z-10 grid h-11 w-11 place-items-center rounded-full ring-2 ring-blue-600 ring-offset-2"
+                      : "grid h-11 w-11 place-items-center rounded-full opacity-65 transition hover:opacity-100"
+                  }
+                  type="button"
+                  onClick={() => chooseInputter(inputter)}
+                >
+                  <img
+                    alt=""
+                    className="h-10 w-10 rounded-full border-2 border-white object-cover shadow-sm"
+                    src={index === 0 ? "/images/header-2.png" : "/images/header-3.png"}
+                  />
+                </button>
+              ))}
             </div>
           </header>
 
-          <section className="order-3 grid gap-3 sm:order-2 md:grid-cols-3">
-            <SummaryCard label={`${visibleMonth} 수입`} tone="income" value={monthlyStats.income} />
-            <SummaryCard label={`${visibleMonth} 지출`} tone="expense" value={monthlyStats.expense} />
-            <SummaryCard label={`${visibleMonth} 잔액`} tone="primary" value={monthlyStats.balance} />
+          <section className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm shadow-blue-100/70">
+            <div className="flex items-center justify-between bg-blue-600 px-4 py-3 text-white">
+              <button
+                aria-label="이전 달"
+                className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-lg font-black hover:bg-white/20"
+                type="button"
+                onClick={() => {
+                  const nextMonth = shiftMonthKey(visibleMonth, -1);
+                  setVisibleMonth(nextMonth);
+                  setPickerMonth(nextMonth);
+                  setStoredMonth(nextMonth);
+                }}
+              >
+                ‹
+              </button>
+              <strong className="text-base font-black">{visibleMonth.replace("-", "년 ") + "월"}</strong>
+              <button
+                aria-label="다음 달"
+                className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-lg font-black hover:bg-white/20"
+                type="button"
+                onClick={() => {
+                  const nextMonth = shiftMonthKey(visibleMonth, 1);
+                  setVisibleMonth(nextMonth);
+                  setPickerMonth(nextMonth);
+                  setStoredMonth(nextMonth);
+                }}
+              >
+                ›
+              </button>
+            </div>
+            <div className="grid grid-cols-3 divide-x divide-slate-100 px-2 py-4">
+              {[
+                { label: "수입", value: monthlyStats.income, tone: "text-blue-600" },
+                { label: "지출", value: monthlyStats.expense, tone: "text-red-600" },
+                {
+                  label: "잔액",
+                  value: monthlyStats.balance,
+                  tone: monthlyStats.balance < 0 ? "text-red-600" : "text-slate-950"
+                }
+              ].map((item) => (
+                <div key={item.label} className="min-w-0 px-2 text-center">
+                  <p className="text-xs font-bold text-slate-500">{item.label}</p>
+                  {isLoading ? (
+                    <div className="mx-auto mt-2 h-5 w-16 animate-pulse rounded bg-slate-100" />
+                  ) : (
+                    <p className={"money mt-1 truncate text-sm font-black sm:text-lg " + item.tone}>
+                      {currency.format(item.value)}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
           </section>
 
-          <section className="order-2 sm:order-3">
-            <form onSubmit={submit} className="panel mx-auto max-w-xl p-3">
-              <div className="flex items-center justify-between gap-3">
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.12fr)_minmax(300px,0.88fr)]">
+            <form
+              ref={formRef}
+              aria-busy={isSaving}
+              className="panel scroll-mt-4 rounded-2xl p-4 sm:p-5"
+              onSubmit={submit}
+            >
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-black">{editingId ? "가계부 수정" : "가계부"}</h2>
-                  <p className="mt-0.5 text-xs font-bold text-slate-500">
-                    {selectedInputter ? `${inputterLabel[selectedInputter]} 입력 중` : "입력자를 선택해 주세요"}
+                  <h2 className="text-lg font-black">
+                    {editingId ? "거래 수정" : "빠른 입력"}
+                  </h2>
+                  <p className="mt-1 text-xs font-bold text-slate-500">
+                    {selectedInputter
+                      ? inputterLabel[selectedInputter] + " 입력 중"
+                      : "입력자를 선택해 주세요"}
                   </p>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <IconNav href="/ledger" label="달력" type="ledger" />
-                  <IconNav href="/transactions" label="거래리스트" type="transactions" />
-                  <IconNav href="/totals" label="전체통계" type="totals" />
-                </div>
+                {editingId ? (
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700">
+                    수정 중
+                  </span>
+                ) : null}
               </div>
 
-              <div className="mt-3 grid gap-3">
+              <fieldset className="mt-4 grid gap-4" disabled={isSaving}>
                 <SegmentedTransactionType
                   value={form.type}
                   onChange={(type) => setForm((current) => ({ ...current, type }))}
@@ -355,10 +490,17 @@ export default function Home() {
                   }
                 />
 
-                <label className="grid gap-1 text-xs font-bold">
+                <label
+                  className="grid gap-1.5 text-xs font-black text-slate-700"
+                  htmlFor="transaction-title"
+                >
                   제목
                   <input
                     ref={titleInputRef}
+                    id="transaction-title"
+                    aria-describedby={
+                      validationError?.field === "memo" ? "transaction-title-error" : undefined
+                    }
                     aria-invalid={validationError?.field === "memo"}
                     className="input"
                     value={form.memo}
@@ -374,47 +516,88 @@ export default function Home() {
                         category: category || value.category
                       }));
                     }}
-                    placeholder="제목을 입력해주세요"
+                    placeholder="예: 이마트 장보기"
                   />
                   {validationError?.field === "memo" ? (
-                    <span className="text-xs font-bold text-red-600">
+                    <span
+                      id="transaction-title-error"
+                      className="text-xs font-bold text-red-600"
+                      role="alert"
+                    >
                       {validationError.message}
                     </span>
                   ) : null}
                 </label>
 
-                <label className="grid gap-1 text-xs font-bold">
-                  금액
-                  <input
-                    ref={amountInputRef}
-                    aria-invalid={validationError?.field === "amount"}
-                    className="input text-right"
-                    inputMode="numeric"
-                    value={formatAmount(form.amount)}
-                    onChange={(event) => {
-                      if (validationError?.field === "amount") {
-                        setValidationError(null);
+                <div className="grid gap-1.5">
+                  <label
+                    className="grid gap-1.5 text-xs font-black text-slate-700"
+                    htmlFor="transaction-amount"
+                  >
+                    금액
+                    <input
+                      ref={amountInputRef}
+                      id="transaction-amount"
+                      aria-describedby={
+                        validationError?.field === "amount"
+                          ? "transaction-amount-error"
+                          : undefined
                       }
-                      setForm((value) => ({
-                        ...value,
-                        amount: parseAmount(event.target.value)
-                      }));
-                    }}
-                    placeholder="금액을 입력하세요"
-                  />
-                  {validationError?.field === "amount" ? (
-                    <span className="text-xs font-bold text-red-600">
-                      {validationError.message}
-                    </span>
-                  ) : null}
-                </label>
+                      aria-invalid={validationError?.field === "amount"}
+                      className="input text-right"
+                      inputMode="numeric"
+                      value={formatAmount(form.amount)}
+                      onChange={(event) => {
+                        if (validationError?.field === "amount") {
+                          setValidationError(null);
+                        }
+                        setForm((value) => ({
+                          ...value,
+                          amount: parseAmount(event.target.value)
+                        }));
+                      }}
+                      placeholder="금액을 입력하세요"
+                    />
+                    {validationError?.field === "amount" ? (
+                      <span
+                        id="transaction-amount-error"
+                        className="text-xs font-bold text-red-600"
+                        role="alert"
+                      >
+                        {validationError.message}
+                      </span>
+                    ) : null}
+                  </label>
+                  <div
+                    aria-label="금액 빠른 추가"
+                    className="grid grid-cols-3 gap-2"
+                    role="group"
+                  >
+                    {[1000, 10000, 50000].map((amount) => (
+                      <button
+                        key={amount}
+                        className="btn-small border-blue-100 bg-blue-50 text-blue-700"
+                        type="button"
+                        onClick={() =>
+                          setForm((current) => ({
+                            ...current,
+                            amount: current.amount + amount
+                          }))
+                        }
+                      >
+                        +{numberFormat.format(amount)}원
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                <div className="grid gap-2">
-                  <label className="grid gap-1 text-xs font-bold">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1.5 text-xs font-black text-slate-700">
                     날짜
-                    <div className="relative grid grid-cols-[minmax(0,1fr)_42px] gap-1.5">
+                    <div className="relative grid grid-cols-[minmax(0,1fr)_44px] gap-2">
                       <input
                         className="input min-w-0 pr-2"
+                        required
                         type="date"
                         value={form.date}
                         onChange={(event) => {
@@ -426,7 +609,7 @@ export default function Home() {
                       />
                       <button
                         aria-label="달력 열기"
-                        className="h-9 min-w-0 rounded-md border border-slate-500 bg-slate-500 text-xs font-black text-white shadow-sm shadow-slate-200 transition hover:bg-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
+                        className="h-11 min-w-0 rounded-xl border border-blue-600 bg-blue-600 text-xs font-black text-white shadow-sm shadow-blue-100 transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                         type="button"
                         onClick={() => setIsPickerOpen((value) => !value)}
                       >
@@ -470,7 +653,7 @@ export default function Home() {
                     </div>
                   </label>
 
-                  <label className="grid gap-1 text-xs font-bold">
+                  <label className="grid gap-1.5 text-xs font-black text-slate-700">
                     카테고리
                     <select
                       className="input min-w-0"
@@ -489,8 +672,8 @@ export default function Home() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <button className="btn-primary" type="submit">
-                    {editingId ? "수정 저장" : "추가"}
+                  <button className="btn-primary h-11" type="submit">
+                    {isSaving ? "저장 중..." : editingId ? "수정 저장" : "저장"}
                   </button>
                   <button
                     className="btn-secondary"
@@ -513,64 +696,80 @@ export default function Home() {
                     초기화
                   </button>
                 </div>
-              </div>
+              </fieldset>
             </form>
-          </section>
+
+            <section aria-busy={isLoading} className="panel rounded-2xl p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-black">최근 거래</h2>
+                  <p className="mt-1 text-xs font-bold text-slate-500">
+                    항목을 눌러 빠르게 다시 입력할 수 있어요.
+                  </p>
+                </div>
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700">
+                  {transactions.length}건
+                </span>
+              </div>
+
+              <div className="mt-4 overflow-hidden rounded-xl border border-slate-100">
+                {isLoading ? (
+                  <div className="grid gap-px bg-slate-100">
+                    {[0, 1, 2].map((item) => (
+                      <div key={item} className="h-[68px] animate-pulse bg-white p-3">
+                        <div className="h-4 w-2/3 rounded bg-slate-100" />
+                        <div className="mt-2 h-3 w-1/2 rounded bg-slate-100" />
+                      </div>
+                    ))}
+                  </div>
+                ) : recentTransactions.length === 0 ? (
+                  <div className="px-4 py-10 text-center">
+                    <p className="text-sm font-black text-slate-700">아직 거래가 없습니다.</p>
+                    <p className="mt-1 text-xs text-slate-500">첫 거래를 위에서 입력해 보세요.</p>
+                  </div>
+                ) : (
+                  recentTransactions.map((transaction) => (
+                    <button
+                      key={transaction.id}
+                      className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-slate-100 bg-white px-3 py-3 text-left transition last:border-0 hover:bg-blue-50/50"
+                      type="button"
+                      onClick={() => reuseTransaction(transaction)}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-black text-slate-900">
+                          {transaction.memo || "제목 없음"}
+                        </span>
+                        <span className="mt-1 block truncate text-xs text-slate-500">
+                          {transaction.category} · {paymentLabel[transaction.paymentMethod]} ·{" "}
+                          {inputterLabel[transaction.inputter]}
+                        </span>
+                      </span>
+                      <span className="text-right">
+                        <span
+                          className={
+                            transaction.type === "income"
+                              ? "money block text-sm font-black text-blue-600"
+                              : "money block text-sm font-black text-red-600"
+                          }
+                        >
+                          {transaction.type === "income" ? "+" : "-"}
+                          {currency.format(transaction.amount)}
+                        </span>
+                        <span className="mt-1 block text-[11px] font-bold text-blue-600">
+                          다시 입력
+                        </span>
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </section>
+          </div>
         </div>
+        <BottomNav />
         {!selectedInputter ? <InputterGate onSelect={chooseInputter} /> : null}
       </main>
     </>
-  );
-}
-
-function IconNav({
-  href,
-  label,
-  type
-}: {
-  href: string;
-  label: string;
-  type: "ledger" | "transactions" | "totals";
-}) {
-  return (
-    <Link
-      aria-label={label}
-      className="flex h-12 w-16 flex-col items-center justify-center gap-0.5 rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-400 hover:text-slate-950"
-      href={href}
-      replace
-      title={label}
-    >
-      {type === "ledger" ? (
-        <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M8 2v4" />
-          <path d="M16 2v4" />
-          <rect height="18" rx="3" width="18" x="3" y="4" />
-          <path d="M3 10h18" />
-          <path d="M7 14h4" />
-          <path d="M7 18h7" />
-        </svg>
-      ) : null}
-      {type === "totals" ? (
-        <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M4 19V5" />
-          <path d="M4 19h16" />
-          <path d="M8 16v-5" />
-          <path d="M12 16V8" />
-          <path d="M16 16v-3" />
-        </svg>
-      ) : null}
-      {type === "transactions" ? (
-        <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M8 6h13" />
-          <path d="M8 12h13" />
-          <path d="M8 18h13" />
-          <path d="M3 6h.01" />
-          <path d="M3 12h.01" />
-          <path d="M3 18h.01" />
-        </svg>
-      ) : null}
-      <span className="whitespace-nowrap text-[8px] font-black leading-none">{label}</span>
-    </Link>
   );
 }
 
@@ -611,10 +810,10 @@ function SegmentedTransactionType({
           key={type}
           type="button"
           onClick={() => onChange(type)}
-          className={`rounded px-3 py-1.5 text-xs font-black ${
+          className={`h-11 rounded px-3 text-xs font-black transition ${
             value === type
-              ? "border border-slate-500 bg-slate-500 text-white shadow-sm"
-              : "border border-slate-200 bg-white text-slate-600"
+              ? "border border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-200"
+              : "border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700"
           }`}
         >
           {type === "expense" ? "지출" : "소득"}
@@ -638,10 +837,10 @@ function SegmentedPaymentMethod({
           key={method}
           type="button"
           onClick={() => onChange(method)}
-          className={`rounded px-3 py-1.5 text-xs font-black ${
+          className={`h-11 rounded px-3 text-xs font-black transition ${
             value === method
-              ? "border border-slate-500 bg-slate-500 text-white shadow-sm"
-              : "border border-slate-200 bg-white text-slate-600"
+              ? "border border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-200"
+              : "border border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700"
           }`}
         >
           {paymentLabel[method]}
@@ -684,11 +883,11 @@ function MiniDatePicker({
         {days.map((day, index) => (
           <button
             key={day?.date || `empty-picker-${index}`}
-            className={`h-7 rounded text-xs font-black ${
+            className={`h-11 rounded text-xs font-black transition ${
               day?.date === selectedDate
-                ? "bg-slate-500 text-white"
+                ? "bg-blue-600 text-white shadow-sm shadow-blue-200"
                 : day
-                  ? "border border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400 hover:bg-white"
+                  ? "border border-slate-200 bg-slate-50 text-slate-700 hover:border-blue-300 hover:bg-blue-50"
                   : "bg-transparent"
             }`}
             disabled={!day}
@@ -699,31 +898,6 @@ function MiniDatePicker({
           </button>
         ))}
       </div>
-    </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  tone,
-  value
-}: {
-  label: string;
-  tone: "income" | "expense" | "primary";
-  value: number;
-}) {
-  const toneClass = {
-    income: "text-slate-600",
-    expense: "text-red-600",
-    primary: "text-slate-950"
-  }[tone];
-
-  return (
-    <div className="panel p-3">
-      <p className="text-xs font-bold text-slate-500">{label}</p>
-      <p className={`money mt-1 text-lg font-black sm:text-xl ${toneClass}`}>
-        {currency.format(value)}
-      </p>
     </div>
   );
 }
