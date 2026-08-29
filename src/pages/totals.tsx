@@ -8,7 +8,7 @@ import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { getTransactions } from "@/services/api";
 import type { Transaction } from "@/types/transaction";
 import { currentMonthKey, isMonthKey, yearDateRange } from "@/utils/month";
-import { getStoredMonth, hasAppEntered, setStoredMonth } from "@/utils/session";
+import { getStoredMonth, setStoredMonth } from "@/utils/session";
 
 const currency = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -60,11 +60,6 @@ export default function TotalsPage() {
 
   useEffect(() => {
     if (!router.isReady) {
-      return;
-    }
-
-    if (!hasAppEntered()) {
-      router.replace("/");
       return;
     }
 

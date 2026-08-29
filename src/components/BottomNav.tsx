@@ -75,6 +75,27 @@ const NAV_ITEMS: NavItem[] = [
         />
       </svg>
     )
+  },
+  {
+    href: "/settings",
+    label: "설정",
+    activePaths: ["/settings"],
+    icon: (
+      <svg aria-hidden="true" className={ICON_CLASS_NAME} fill="none" viewBox="0 0 24 24">
+        <path
+          d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.4v-.1A1.7 1.7 0 0 0 8 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 3.6 15a1.7 1.7 0 0 0-1.6-1H2V10h.1A1.7 1.7 0 0 0 3.6 8a1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.06 3.2l.06.06A1.7 1.7 0 0 0 8 3.6 1.7 1.7 0 0 0 9.4 2H14a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 8a1.7 1.7 0 0 0 1.6 1.4h.1V14H21a1.7 1.7 0 0 0-1.6 1Z"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="1.4"
+        />
+      </svg>
+    )
   }
 ];
 
@@ -86,7 +107,7 @@ export default function BottomNav() {
       aria-label="주요 메뉴"
       className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-blue-100 bg-white/95 shadow-[0_-8px_24px_rgba(30,64,175,0.08)] backdrop-blur sm:inset-x-auto sm:bottom-4 sm:left-1/2 sm:w-[calc(100%-2rem)] sm:max-w-lg sm:-translate-x-1/2 sm:overflow-hidden sm:rounded-2xl sm:border"
     >
-      <div className="mx-auto grid max-w-lg grid-cols-4 px-2 pt-1.5">
+      <div className="mx-auto grid max-w-lg grid-cols-5 px-2 pt-1.5">
         {NAV_ITEMS.map((item) => {
           const isActive = item.activePaths.includes(router.pathname);
 

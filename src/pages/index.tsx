@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import BottomNav from "@/components/BottomNav";
 import ErrorBanner from "@/components/ErrorBanner";
 import FeedbackToast from "@/components/FeedbackToast";
+import { useAuth } from "@/contexts/AuthContext";
 import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import {
   createTransaction,
@@ -13,7 +14,6 @@ import {
   updateTransaction
 } from "@/services/api";
 import type {
-  Inputter,
   PaymentMethod,
   Transaction,
   TransactionInput,
@@ -31,10 +31,7 @@ import {
   clearStoredEditTransactionId,
   getStoredEditReturnPath,
   getStoredEditTransactionId,
-  getStoredInputter,
   getStoredMonth,
-  markAppEntered,
-  setStoredInputter,
   setStoredMonth
 } from "@/utils/session";
 import {
@@ -89,6 +86,8 @@ const isDateKey = (value: unknown): value is string => {
 
 export default function Home() {
   const router = useRouter();
+  const { membership } = useAuth();
+  const selectedInputter = membership?.inputter || "husband";
   const formRef = useRef<HTMLFormElement | null>(null);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const amountInputRef = useRef<HTMLInputElement | null>(null);
@@ -101,7 +100,6 @@ export default function Home() {
     field: "memo" | "amount";
     message: string;
   } | null>(null);
-  const [selectedInputter, setSelectedInputter] = useState<Inputter | null>(null);
   const [visibleMonth, setVisibleMonth] = useState(currentMonthKey());
   const [pickerMonth, setPickerMonth] = useState(currentMonthKey());
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -211,7 +209,6 @@ export default function Home() {
       return;
     }
 
-    markAppEntered();
     const queryMonth = router.query.month;
     const queryDate = router.query.date;
     const nextMonth = isDateKey(queryDate)
@@ -219,14 +216,12 @@ export default function Home() {
       : isMonthKey(queryMonth)
         ? queryMonth
         : getStoredMonth();
-    const storedInputter = getStoredInputter();
     setVisibleMonth(nextMonth);
     setPickerMonth(nextMonth);
     setStoredMonth(nextMonth);
-    setSelectedInputter(storedInputter);
 
-    if (storedInputter && !getStoredEditTransactionId()) {
-      setForm((current) => ({ ...current, inputter: storedInputter }));
+    if (!getStoredEditTransactionId()) {
+      setForm((current) => ({ ...current, inputter: selectedInputter }));
     }
 
     if (isDateKey(queryDate) && !getStoredEditTransactionId()) {
@@ -236,7 +231,7 @@ export default function Home() {
     if (isMonthKey(queryMonth) || isDateKey(queryDate)) {
       void router.replace(router.pathname, undefined, { shallow: true });
     }
-  }, [router.isReady, router.query.date, router.query.month]);
+  }, [router.isReady, router.query.date, router.query.month, selectedInputter]);
 
   const monthlyStats = useMemo(() => {
     const monthTransactions = transactions.filter((transaction) =>
@@ -260,7 +255,7 @@ export default function Home() {
     const payload = {
       ...form,
       memo: form.memo.trim(),
-      inputter: editingId ? form.inputter : selectedInputter || form.inputter,
+      inputter: editingId ? form.inputter : selectedInputter,
       amount: Number(form.amount)
     };
 
@@ -273,10 +268,6 @@ export default function Home() {
     if (!payload.amount || payload.amount < 0) {
       setValidationError({ field: "amount", message: "금액을 입력해 주세요." });
       amountInputRef.current?.focus();
-      return;
-    }
-
-    if (!selectedInputter) {
       return;
     }
 
@@ -318,12 +309,6 @@ export default function Home() {
     }
   };
 
-  const chooseInputter = (inputter: Inputter) => {
-    setSelectedInputter(inputter);
-    setStoredInputter(inputter);
-    setForm((current) => ({ ...current, inputter }));
-  };
-
   const reuseTransaction = (transaction: Transaction) => {
     const date = currentDateKey();
     setEditingId(null);
@@ -332,7 +317,7 @@ export default function Home() {
     setForm({
       type: transaction.type,
       paymentMethod: transaction.paymentMethod,
-      inputter: selectedInputter || transaction.inputter,
+      inputter: selectedInputter,
       category: transaction.category,
       amount: transaction.amount,
       memo: transaction.memo,
@@ -349,7 +334,7 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>솔샘네 가계부</title>
+        <title>{membership?.household.name || "솔샘네"} 가계부</title>
         <meta name="description" content="Supabase 기반 가계부 입력 화면" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -372,30 +357,18 @@ export default function Home() {
             <div>
               <p className="text-xs font-black text-blue-600">{visibleMonth}</p>
               <h1 className="mt-0.5 text-xl font-black tracking-tight text-slate-950">
-                솔샘네 가계부
+                {membership?.household.name || "솔샘네"} 가계부
               </h1>
             </div>
-            <div aria-label="입력자 선택" className="flex items-center -space-x-2">
-              {(["husband", "wife"] as Inputter[]).map((inputter, index) => (
-                <button
-                  key={inputter}
-                  aria-label={inputterLabel[inputter] + "으로 입력"}
-                  aria-pressed={selectedInputter === inputter}
-                  className={
-                    selectedInputter === inputter
-                      ? "relative z-10 grid h-11 w-11 place-items-center rounded-full ring-2 ring-blue-600 ring-offset-2"
-                      : "grid h-11 w-11 place-items-center rounded-full opacity-65 transition hover:opacity-100"
-                  }
-                  type="button"
-                  onClick={() => chooseInputter(inputter)}
-                >
-                  <img
-                    alt=""
-                    className="h-10 w-10 rounded-full border-2 border-white object-cover shadow-sm"
-                    src={index === 0 ? "/images/header-2.png" : "/images/header-3.png"}
-                  />
-                </button>
-              ))}
+            <div className="flex items-center gap-2 rounded-full border border-blue-100 bg-white py-1 pl-1 pr-3 shadow-sm">
+              <img
+                alt=""
+                className="h-9 w-9 rounded-full border-2 border-white object-cover"
+                src={selectedInputter === "husband" ? "/images/header-2.png" : "/images/header-3.png"}
+              />
+              <span className="text-xs font-black text-blue-700">
+                {membership?.displayName || inputterLabel[selectedInputter]}
+              </span>
             </div>
           </header>
 
@@ -466,9 +439,7 @@ export default function Home() {
                     {editingId ? "거래 수정" : "빠른 입력"}
                   </h2>
                   <p className="mt-1 text-xs font-bold text-slate-500">
-                    {selectedInputter
-                      ? inputterLabel[selectedInputter] + " 입력 중"
-                      : "입력자를 선택해 주세요"}
+                    {inputterLabel[selectedInputter]} 계정으로 입력 중
                   </p>
                 </div>
                 {editingId ? (
@@ -684,7 +655,7 @@ export default function Home() {
                       clearStoredEditReturnPath();
                       setForm({
                         ...emptyForm,
-                        inputter: selectedInputter || "husband",
+                        inputter: selectedInputter,
                         date: form.date,
                         category: categories[0] || "기타"
                       });
@@ -767,32 +738,8 @@ export default function Home() {
           </div>
         </div>
         <BottomNav />
-        {!selectedInputter ? <InputterGate onSelect={chooseInputter} /> : null}
       </main>
     </>
-  );
-}
-
-function InputterGate({ onSelect }: { onSelect: (inputter: Inputter) => void }) {
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 px-4 backdrop-blur-sm">
-      <section className="panel w-full max-w-sm p-5 text-center">
-        <p className="text-sm font-bold text-slate-500">처음 사용할 입력자를 선택해 주세요</p>
-        <h2 className="mt-1 text-2xl font-black text-slate-950">누가 입력하나요?</h2>
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          {(["husband", "wife"] as Inputter[]).map((inputter) => (
-            <button
-              key={inputter}
-              className="btn-primary h-12"
-              type="button"
-              onClick={() => onSelect(inputter)}
-            >
-              {inputterLabel[inputter]}
-            </button>
-          ))}
-        </div>
-      </section>
-    </div>
   );
 }
 

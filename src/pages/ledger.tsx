@@ -16,7 +16,6 @@ import {
 } from "@/utils/month";
 import {
   getStoredMonth,
-  hasAppEntered,
   setStoredEditReturnPath,
   setStoredEditTransactionId,
   setStoredMonth
@@ -82,11 +81,6 @@ export default function LedgerPage() {
 
   useEffect(() => {
     if (!router.isReady) {
-      return;
-    }
-
-    if (!hasAppEntered()) {
-      router.replace("/");
       return;
     }
 

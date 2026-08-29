@@ -13,7 +13,7 @@ import {
   monthDateRange,
   shiftMonthKey
 } from "@/utils/month";
-import { getStoredMonth, hasAppEntered, setStoredMonth } from "@/utils/session";
+import { getStoredMonth, setStoredMonth } from "@/utils/session";
 
 const currency = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -57,11 +57,6 @@ export default function CategoriesPage() {
 
   useEffect(() => {
     if (!router.isReady) {
-      return;
-    }
-
-    if (!hasAppEntered()) {
-      router.replace("/");
       return;
     }
 

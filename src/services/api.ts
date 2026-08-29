@@ -1,5 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseClient } from "@/services/supabase";
 import type { Transaction, TransactionInput } from "@/types/transaction";
 import { DEFAULT_CATEGORIES } from "@/utils/ledger";
 import type { TransactionDateRange } from "@/utils/month";
@@ -15,22 +14,8 @@ type TransactionRow = {
   date: string;
 };
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-let supabaseClient: SupabaseClient | null = null;
 const TRANSACTION_COLUMNS = "id,type,payment_method,inputter,category,amount,memo,date";
 const TRANSACTION_PAGE_SIZE = 1000;
-
-const getSupabase = () => {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      "Missing Supabase environment variables. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
-    );
-  }
-
-  supabaseClient = supabaseClient || createClient(supabaseUrl, supabaseAnonKey);
-  return supabaseClient;
-};
 
 const toTransaction = (row: TransactionRow): Transaction => ({
   id: row.id,
@@ -55,7 +40,7 @@ const toRow = (transaction: TransactionInput, id: string): TransactionRow => ({
 });
 
 export const getTransactions = async (range?: TransactionDateRange) => {
-  const supabase = getSupabase();
+  const supabase = getSupabaseClient();
   const transactions: Transaction[] = [];
 
   for (let from = 0; ; from += TRANSACTION_PAGE_SIZE) {
@@ -90,7 +75,7 @@ export const getTransactions = async (range?: TransactionDateRange) => {
 };
 
 export const getTransaction = async (id: string) => {
-  const supabase = getSupabase();
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("transactions")
     .select(TRANSACTION_COLUMNS)
@@ -105,7 +90,7 @@ export const getTransaction = async (id: string) => {
 };
 
 export const createTransaction = async (transaction: TransactionInput) => {
-  const supabase = getSupabase();
+  const supabase = getSupabaseClient();
   const id = crypto.randomUUID();
   const { data, error } = await supabase
     .from("transactions")
@@ -121,7 +106,7 @@ export const createTransaction = async (transaction: TransactionInput) => {
 };
 
 export const updateTransaction = async (id: string, transaction: TransactionInput) => {
-  const supabase = getSupabase();
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("transactions")
     .update(toRow(transaction, id))
@@ -137,7 +122,7 @@ export const updateTransaction = async (id: string, transaction: TransactionInpu
 };
 
 export const deleteTransaction = async (id: string) => {
-  const supabase = getSupabase();
+  const supabase = getSupabaseClient();
   const { error } = await supabase.from("transactions").delete().eq("id", id);
 
   if (error) {

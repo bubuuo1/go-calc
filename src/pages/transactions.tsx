@@ -15,7 +15,6 @@ import {
 } from "@/utils/month";
 import {
   getStoredMonth,
-  hasAppEntered,
   setStoredEditReturnPath,
   setStoredEditTransactionId,
   setStoredMonth
@@ -104,11 +103,6 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     if (!router.isReady) {
-      return;
-    }
-
-    if (!hasAppEntered()) {
-      router.replace("/");
       return;
     }
 

@@ -14,7 +14,7 @@ import {
   monthWithPreviousDateRange,
   shiftMonthKey
 } from "@/utils/month";
-import { getStoredMonth, hasAppEntered, setStoredMonth } from "@/utils/session";
+import { getStoredMonth, setStoredMonth } from "@/utils/session";
 import { DEFAULT_CATEGORIES, EXCLUDED_GRAPH_CATEGORIES } from "@/utils/ledger";
 
 const currency = new Intl.NumberFormat("ko-KR", {
@@ -68,11 +68,6 @@ export default function StatsPage() {
 
   useEffect(() => {
     if (!router.isReady) {
-      return;
-    }
-
-    if (!hasAppEntered()) {
-      router.replace("/");
       return;
     }
 
