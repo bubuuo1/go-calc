@@ -1,12 +1,15 @@
 const CACHE_PREFIX = "solsaem-ledger";
-const CACHE_NAME = CACHE_PREFIX + "-v2";
+const CACHE_NAME = CACHE_PREFIX + "-v3";
 const APP_SHELL = [
   "/",
   "/offline.html",
   "/manifest.webmanifest",
   "/favicon.png",
   "/icon-192.png",
-  "/apple-touch-icon.png"
+  "/apple-touch-icon.png",
+  "/notification-heart.png",
+  "/notification-heart-badge.png",
+  "/notification-heart-apple.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -101,8 +104,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "솔샘네 가계부";
   const options = {
     body: payload.body || "확인할 가계부 알림이 있습니다.",
-    icon: "/favicon.png",
-    badge: "/favicon.png",
+    icon: "/notification-heart.png",
+    badge: "/notification-heart-badge.png",
     tag: payload.tag || "ledger-notification",
     renotify: false,
     data: {
